@@ -1,6 +1,47 @@
-/* Typography: A single Vietnamese-optimized family prevents mixed font metrics. */
+/* Self-hosted font files keep Vietnamese typography reliable on Vercel and restricted networks. */
+@font-face {
+  font-family: 'Be Vietnam Pro';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/be-vietnam-pro-400.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Be Vietnam Pro';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../assets/fonts/be-vietnam-pro-500.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Be Vietnam Pro';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../assets/fonts/be-vietnam-pro-600.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Be Vietnam Pro';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/be-vietnam-pro-700.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Be Vietnam Pro';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('../assets/fonts/be-vietnam-pro-800.ttf') format('truetype');
+}
+
+/* A single Vietnamese-optimized family prevents mixed font metrics. */
 :root {
-  font-family: 'Be Vietnam Pro', Arial, sans-serif;
+  font-family: 'Be Vietnam Pro', Arial, 'Segoe UI', sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -14,7 +55,7 @@ button, .btn { line-height: 1.25; }
 /* Use the same font for display text so Vietnamese accents share identical baselines. */
 .brand, .hero h1, .section h2, .cta-band h2, .page-hero h1, .profile h1,
 .prose h2, .price, .step-no {
-  font-family: 'Be Vietnam Pro', Arial, sans-serif;
+  font-family: 'Be Vietnam Pro', Arial, 'Segoe UI', sans-serif;
   letter-spacing: -0.025em;
 }
 
