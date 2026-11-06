@@ -11,6 +11,10 @@ export function isAdmin() { return getCurrentUser()?.role === 'admin'; }
 export async function initialiseAuth() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) { localStorage.removeItem(SESSION_KEY); return null; }
+  return hydrateUser(session);
+}
+
+async function hydrateUser(session) {
   const { data: profile } = await supabase.from('profiles').select('full_name, phone, role').eq('id', session.user.id).maybeSingle();
   const role = profile?.role || 'student';
   const user = { id: session.user.id, name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email, email: session.user.email, phone: profile?.phone || '', role, roleLabel: role === 'admin' ? 'Quản trị viên' : role === 'teacher' ? 'Giáo viên' : 'Học viên' };
@@ -18,16 +22,24 @@ export async function initialiseAuth() {
   return user;
 }
 
+function saveSessionUser(session) {
+  const user = { id: session.user.id, name: session.user.user_metadata?.full_name || session.user.email, email: session.user.email, phone: '', role: 'student', roleLabel: 'Học viên' };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+  return user;
+}
+
 export async function signInWithSupabase(email, password) {
-  const { error } = await supabase.auth.signInWithPassword({ email: String(email).trim(), password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email: String(email).trim(), password });
   if (error) throw error;
-  return initialiseAuth();
+  const user = saveSessionUser(data.session);
+  hydrateUser(data.session).catch(() => {});
+  return user;
 }
 
 export async function signUpWithSupabase({ fullName, email, password }) {
   const { data, error } = await supabase.auth.signUp({ email: String(email).trim(), password, options: { data: { full_name: String(fullName).trim() } } });
   if (error) throw error;
-  if (data.session) await initialiseAuth();
+  if (data.session) { saveSessionUser(data.session); hydrateUser(data.session).catch(() => {}); }
   return data;
 }
 
@@ -84,17 +96,24 @@ export function bindLoginPage() {
   document.querySelector('#login-form')?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const button = event.currentTarget.querySelector('button[type="submit"]');
     try {
+      button.disabled = true;
+      button.textContent = 'Đang đăng nhập…';
       await signInWithSupabase(form.get('email'), form.get('password'));
-      location.hash = '#/';
+      location.hash = '#/ho-so';
     } catch (error) {
       showError(error);
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Đăng nhập';
     }
   });
   document.querySelector('#signup-form')?.addEventListener('submit', async (event) => {
     event.preventDefault();
     try {
       const data = await signUpWithSupabase(Object.fromEntries(new FormData(event.currentTarget)));
+      if (!message) return;
       message.textContent = data.session ? 'Tạo tài khoản thành công. Bạn đã đăng nhập.' : 'Tạo tài khoản thành công. Hãy kiểm tra email để xác nhận trước khi đăng nhập.';
       message.className = 'admin-message success';
       if (data.session) location.hash = '#/';
@@ -102,6 +121,7 @@ export function bindLoginPage() {
   });
   document.querySelector('#password-recovery')?.addEventListener('click', async () => {
     const email = document.querySelector('#login-form [name="email"]')?.value;
+    if (!message) return;
     if (!email) { message.textContent = 'Hãy nhập email ở form đăng nhập trước.'; message.className = 'admin-message error'; return; }
     try { await sendPasswordRecovery(email); message.textContent = 'Nếu email tồn tại, DriNet đã gửi hướng dẫn đặt lại mật khẩu. Hãy kiểm tra hộp thư.'; message.className = 'admin-message success'; } catch (error) { showError(error); }
   });
