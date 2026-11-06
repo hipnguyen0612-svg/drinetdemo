@@ -1,0 +1,28 @@
+/* Typography: A single Vietnamese-optimized family prevents mixed font metrics. */
+:root {
+  font-family: 'Be Vietnam Pro', Arial, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body { font-size: 15px; letter-spacing: 0; }
+button, input, select, textarea { font-family: inherit; line-height: 1.45; }
+button, .btn { line-height: 1.25; }
+
+/* Use the same font for display text so Vietnamese accents share identical baselines. */
+.brand, .hero h1, .section h2, .cta-band h2, .page-hero h1, .profile h1,
+.prose h2, .price, .step-no {
+  font-family: 'Be Vietnam Pro', Arial, sans-serif;
+  letter-spacing: -0.025em;
+}
+
+.brand { line-height: 1.08; letter-spacing: -0.035em; }
+.brand small { line-height: 1.25; letter-spacing: .11em; }
+.hero h1, .section h2, .page-hero h1, .profile h1, .cta-band h2, .prose h2 { text-wrap: balance; }
+label { line-height: 1.4; }
+input, select, textarea { line-height: 1.45; }
+
+/* CSS unicode escape avoids broken arrow glyphs on servers with legacy encodings. */
+.step:not(:last-child)::after { content: '\2192'; }

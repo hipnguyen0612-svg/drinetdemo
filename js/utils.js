@@ -1,0 +1,1 @@
+export function submitForm(e,message){e.preventDefault();let result=e.currentTarget.querySelector('.form-success');result.textContent='&#10003; '+message;result.classList.add('show');e.currentTarget.querySelector('button[type="submit"],button:not([type])').disabled=true;e.currentTarget.querySelector('button[type="submit"],button:not([type])').textContent='Đã gửi';}
