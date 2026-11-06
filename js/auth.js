@@ -88,7 +88,7 @@ export function bindLoginPage() {
     const form = new FormData(event.currentTarget);
     try {
       await signInWithSupabase(form.get('email'), form.get('password'));
-      location.hash = getCurrentUser()?.role === 'admin' ? '#/admin' : '#/';
+      location.hash = '#/ho-so';
     } catch (error) {
       showError(error);
     }
@@ -99,7 +99,7 @@ export function bindLoginPage() {
       const data = await signUpWithSupabase(Object.fromEntries(new FormData(event.currentTarget)));
       message.textContent = data.session ? 'Tạo tài khoản thành công. Bạn đã đăng nhập.' : 'Tạo tài khoản thành công. Hãy kiểm tra email để xác nhận trước khi đăng nhập.';
       message.className = 'admin-message success';
-      if (data.session) location.hash = '#/';
+      if (data.session) location.hash = '#/ho-so';
     } catch (error) { showError(error); }
   });
   document.querySelector('#password-recovery')?.addEventListener('click', async () => {
