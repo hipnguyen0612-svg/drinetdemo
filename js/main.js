@@ -1,4 +1,5 @@
-import { teachers } from './data.js';
+import { getTeachers } from './data.js';
+import { adminPage, bindAdminPage } from './admin.js';
 import { nav, footer } from './components.js';
 import { home, teacherList, profile, formPage, reviewPage, about, contact, terms, bindTeacherFilters } from './pages.js';
 import { submitForm } from './utils.js';
@@ -18,12 +19,13 @@ const routes = {
   '/ve-chung-toi': about,
   '/lien-he': contact,
   '/dieu-khoan': terms,
+  '/admin': adminPage,
 };
 
 function getPage(path) {
   if (path.startsWith('/giao-vien/')) {
     const slug = decodeURIComponent(path.split('/').pop());
-    return () => profile(teachers.find((teacher) => teacher.slug === slug) || teachers[0]);
+    return () => { const teachers = getTeachers(); return profile(teachers.find((teacher) => teacher.slug === slug) || teachers[0]); };
   }
 
   return routes[path] || home;
@@ -36,6 +38,7 @@ function render() {
 
   app.innerHTML = nav() + page() + footer();
   if (path === '/giao-vien') bindTeacherFilters();
+  if (path === '/admin') bindAdminPage();
   window.scrollTo({ top: 0, behavior: 'instant' });
   document.title = path === '/' ? 'DriNet — Kết nối đúng người dạy' : `DriNet | ${path.split('/').pop()}`;
 }
