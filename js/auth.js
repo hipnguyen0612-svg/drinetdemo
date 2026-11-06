@@ -70,16 +70,14 @@ export function bindAccountPage() {
 
 
 export function loginPage() {
-  const currentUser = getCurrentUser();
-  const signedOut = `<h2>Chào mừng đến DriNet</h2><p class="login-intro">Đăng nhập hoặc tạo tài khoản để quản lý nhu cầu học và gửi hồ sơ giáo viên.</p><form id="login-form" class="login-form"><label>Email</label><input name="email" type="email" autocomplete="username" required><label>Mật khẩu</label><input name="password" type="password" autocomplete="current-password" minlength="6" required><button class="btn btn-primary" type="submit">Đăng nhập</button></form><button id="password-recovery" class="text-button" type="button">Quên mật khẩu?</button><hr class="form-divider"><h3>Tạo tài khoản học viên</h3><form id="signup-form" class="login-form"><label>Họ và tên</label><input name="fullName" autocomplete="name" required><label>Email</label><input name="email" type="email" autocomplete="email" required><label>Mật khẩu</label><input name="password" type="password" autocomplete="new-password" minlength="6" required><button class="btn btn-light" type="submit">Tạo tài khoản</button></form><p id="login-message" class="admin-message" aria-live="polite"></p>`;
-  const signedIn = `<h2>Bạn đang đăng nhập</h2><p class="login-intro">${currentUser.name} · ${currentUser.roleLabel}</p><div class="login-actions"><button id="sign-out" class="btn btn-light" type="button">Đăng xuất</button>${currentUser.role === 'admin' ? '<a class="btn btn-primary" href="#/admin">Vào trang quản trị</a>' : '<a class="btn btn-primary" href="#/">Về trang chủ</a>'}</div>`;
-  return `<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">TÀI KHOẢN DRINET</span><h1>Đăng nhập</h1><p>Tài khoản bảo vệ bởi Supabase Auth.</p></div></section><main class="container section"><div class="login-card panel">${currentUser ? signedIn : signedOut}</div></main>`;
+  return `<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">TÀI KHOẢN DRINET</span><h1>Đăng nhập</h1><p>Đăng nhập để quản lý tài khoản DriNet của bạn.</p></div></section><main class="container section"><div class="login-card panel"><h2>Chào mừng đến DriNet</h2><p class="login-intro">Nhập email và mật khẩu của bạn để tiếp tục.</p><form id="login-form" class="login-form"><label>Email</label><input name="email" type="email" autocomplete="username" required><label>Mật khẩu</label><input name="password" type="password" autocomplete="current-password" minlength="6" required><button class="btn btn-primary" type="submit">Đăng nhập</button></form><button id="password-recovery" class="text-button" type="button">Quên mật khẩu?</button><hr class="form-divider"><h3>Tạo tài khoản học viên</h3><form id="signup-form" class="login-form"><label>Họ và tên</label><input name="fullName" autocomplete="name" required><label>Email</label><input name="email" type="email" autocomplete="email" required><label>Mật khẩu</label><input name="password" type="password" autocomplete="new-password" minlength="6" required><button class="btn btn-light" type="submit">Tạo tài khoản</button></form><p id="login-message" class="admin-message" aria-live="polite"></p></div></main>`;
 }
 
 export function bindLoginPage() {
   const message = document.querySelector('#login-message');
   const showError = (error) => {
     const text = String(error?.message || '');
+    if (!message) return;
     message.textContent = /invalid login credentials/i.test(text) ? 'Email hoặc mật khẩu không đúng. Tài khoản demo cũ không còn sử dụng được; hãy dùng tài khoản Supabase thật hoặc chọn “Quên mật khẩu?”.' : /email not confirmed/i.test(text) ? 'Email chưa được xác nhận. Hãy kiểm tra hộp thư của bạn rồi thử lại.' : text || 'Không thể thực hiện yêu cầu. Vui lòng thử lại.';
     message.className = 'admin-message error';
   };
@@ -107,5 +105,4 @@ export function bindLoginPage() {
     if (!email) { message.textContent = 'Hãy nhập email ở form đăng nhập trước.'; message.className = 'admin-message error'; return; }
     try { await sendPasswordRecovery(email); message.textContent = 'Nếu email tồn tại, DriNet đã gửi hướng dẫn đặt lại mật khẩu. Hãy kiểm tra hộp thư.'; message.className = 'admin-message success'; } catch (error) { showError(error); }
   });
-  document.querySelector('#sign-out')?.addEventListener('click', async () => { await signOutFromSupabase(); location.hash = '#/'; });
 }
