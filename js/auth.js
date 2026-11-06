@@ -11,9 +11,9 @@ export function isAdmin() { return getCurrentUser()?.role === 'admin'; }
 export async function initialiseAuth() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) { localStorage.removeItem(SESSION_KEY); return null; }
-  const { data: profile, error } = await supabase.from('profiles').select('full_name, phone, role').eq('id', session.user.id).single();
-  if (error) throw error;
-  const user = { id: session.user.id, name: profile.full_name || session.user.email, email: session.user.email, phone: profile.phone || '', role: profile.role, roleLabel: profile.role === 'admin' ? 'Quản trị viên' : profile.role === 'teacher' ? 'Giáo viên' : 'Học viên' };
+  const { data: profile } = await supabase.from('profiles').select('full_name, phone, role').eq('id', session.user.id).maybeSingle();
+  const role = profile?.role || 'student';
+  const user = { id: session.user.id, name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email, email: session.user.email, phone: profile?.phone || '', role, roleLabel: role === 'admin' ? 'Quản trị viên' : role === 'teacher' ? 'Giáo viên' : 'Học viên' };
   localStorage.setItem(SESSION_KEY, JSON.stringify(user));
   return user;
 }
@@ -88,7 +88,7 @@ export function bindLoginPage() {
     const form = new FormData(event.currentTarget);
     try {
       await signInWithSupabase(form.get('email'), form.get('password'));
-      location.hash = '#/ho-so';
+      location.hash = '#/';
     } catch (error) {
       showError(error);
     }
@@ -99,7 +99,7 @@ export function bindLoginPage() {
       const data = await signUpWithSupabase(Object.fromEntries(new FormData(event.currentTarget)));
       message.textContent = data.session ? 'Tạo tài khoản thành công. Bạn đã đăng nhập.' : 'Tạo tài khoản thành công. Hãy kiểm tra email để xác nhận trước khi đăng nhập.';
       message.className = 'admin-message success';
-      if (data.session) location.hash = '#/ho-so';
+      if (data.session) location.hash = '#/';
     } catch (error) { showError(error); }
   });
   document.querySelector('#password-recovery')?.addEventListener('click', async () => {

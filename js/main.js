@@ -26,7 +26,6 @@ const routes = {
 };
 
 function getPage(path) {
-  if (path === '/dang-nhap' && getCurrentUser()) return accountPage;
   if ((path === '/admin' && !isAdmin()) || (path === '/ho-so' && !getCurrentUser())) return loginPage;
   if (path.startsWith('/giao-vien/')) {
     const slug = decodeURIComponent(path.split('/').pop());
@@ -46,8 +45,8 @@ async function render() {
   if (path === '/dang-ky-hoc') bindStudentRegistration();
   if (path === '/dang-ky-giao-vien') bindTeacherApplication();
   if (path === '/admin' && isAdmin()) bindAdminPage();
-  if ((path === '/dang-nhap' && !getCurrentUser()) || (path === '/admin' && !isAdmin()) || (path === '/ho-so' && !getCurrentUser())) bindLoginPage();
-  if ((path === '/ho-so' || path === '/dang-nhap') && getCurrentUser()) bindAccountPage();
+  if (path === '/dang-nhap' || (path === '/admin' && !isAdmin()) || (path === '/ho-so' && !getCurrentUser())) bindLoginPage();
+  if (path === '/ho-so' && getCurrentUser()) bindAccountPage();
   window.scrollTo({ top: 0, behavior: 'instant' });
   document.title = path === '/' ? 'DriNet — Kết nối đúng người dạy' : `DriNet | ${path.split('/').pop()}`;
 }
