@@ -2,4 +2,4 @@
 
 @media(max-width:800px){.admin-layout{grid-template-columns:1fr}.admin-list-heading{align-items:flex-start;flex-direction:column}.admin-teacher-row{align-items:flex-start}.license-options{flex-wrap:wrap}}
 
-@media(max-width:800px){.nav-actions .account-button{display:inline-flex;max-width:110px}.account-button span{max-width:86px}.login-card{padding:20px}.account-option{align-items:flex-start}.account-action{padding-top:4px}}
+@media(max-width:800px){.nav-actions .account-button{display:inline-flex;max-width:110px}.account-button span{max-width:86px}.login-card{padding:20px}}
