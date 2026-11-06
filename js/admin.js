@@ -71,7 +71,7 @@ function startEdit(slug) {
 
 function readImage(file) {
   return new Promise((resolve, reject) => {
-    if (!file) return resolve('');
+    if (!file || (file instanceof File && file.size === 0 && !file.type)) return resolve('');
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return reject(new Error('Vui lòng chọn ảnh JPG, PNG hoặc WebP.'));
     if (file.size > MAX_IMAGE_SIZE) return reject(new Error('Ảnh vượt quá dung lượng 1,5 MB.'));
     const reader = new FileReader();
