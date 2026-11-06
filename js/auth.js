@@ -66,7 +66,9 @@ export function bindAccountPage() {
   const setMessage = (selector, text, isError = false) => { const message = document.querySelector(selector); message.textContent = text; message.className = `admin-message ${isError ? 'error' : 'success'}`; };
   document.querySelector('#profile-form')?.addEventListener('submit', async (event) => {
     event.preventDefault(); const values = new FormData(event.currentTarget);
-    try { const { error } = await supabase.from('profiles').update({ full_name: String(values.get('fullName')).trim(), phone: String(values.get('phone')).trim() || null }).eq('id', getCurrentUser().id); if (error) throw error; const user = await initialiseAuth(); document.querySelector('.account-button span').textContent = user.name; document.querySelector('.account-summary h2').textContent = user.name; document.querySelector('.account-avatar').textContent = user.name.charAt(0).toUpperCase(); setMessage('#profile-message', 'Đã lưu thông tin cá nhân.'); } catch (error) { setMessage('#profile-message', error.message || 'Không thể lưu thông tin.', true); }
+    const fullName = String(values.get('fullName')).trim();
+    if (!fullName) { setMessage('#profile-message', 'Hãy nhập họ và tên.', true); return; }
+    try { const { error } = await supabase.from('profiles').update({ full_name: fullName, phone: String(values.get('phone')).trim() || null }).eq('id', getCurrentUser().id); if (error) throw error; const user = await initialiseAuth(); document.querySelector('.account-button span').textContent = `Hồ sơ · ${user.name}`; document.querySelector('.account-summary h2').textContent = user.name; document.querySelector('.account-avatar').textContent = user.name.charAt(0).toUpperCase(); setMessage('#profile-message', 'Đã lưu thông tin cá nhân.'); } catch (error) { setMessage('#profile-message', error.message || 'Không thể lưu thông tin.', true); }
   });
   document.querySelector('#email-form')?.addEventListener('submit', async (event) => {
     event.preventDefault(); const email = String(new FormData(event.currentTarget).get('email')).trim();

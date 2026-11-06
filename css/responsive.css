@@ -5,4 +5,5 @@
 @media(max-width:800px){.nav-actions .account-button{display:inline-flex;max-width:110px}.account-button span{max-width:86px}.login-card{padding:20px}}
 
 @media(max-width:800px){.links.open .mobile-teacher-join{display:block;color:var(--blue);font-weight:700}}
+@media(max-width:800px){.links.open .mobile-account-link{display:block;color:var(--navy);font-weight:700}}
 @media(max-width:800px){.account-grid{grid-template-columns:1fr}.account-summary{align-items:flex-start}}
