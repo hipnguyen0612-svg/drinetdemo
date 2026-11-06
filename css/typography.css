@@ -26,3 +26,4 @@ input, select, textarea { line-height: 1.45; }
 
 /* CSS unicode escape avoids broken arrow glyphs on servers with legacy encodings. */
 .step:not(:last-child)::after { content: '\2192'; }
+.empty-results { grid-column: 1 / -1; padding: 28px; border: 1px dashed var(--line); border-radius: 14px; background: #fff; color: var(--muted); text-align: center; font-size: 14px; }

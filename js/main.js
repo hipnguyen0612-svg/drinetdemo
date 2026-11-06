@@ -1,6 +1,6 @@
 import { teachers } from './data.js';
 import { nav, footer } from './components.js';
-import { home, teacherList, profile, formPage, reviewPage, about, contact, terms } from './pages.js';
+import { home, teacherList, profile, formPage, reviewPage, about, contact, terms, bindTeacherFilters } from './pages.js';
 import { submitForm } from './utils.js';
 
 const app = document.querySelector('#app');
@@ -35,6 +35,7 @@ function render() {
   const page = getPage(path);
 
   app.innerHTML = nav() + page() + footer();
+  if (path === '/giao-vien') bindTeacherFilters();
   window.scrollTo({ top: 0, behavior: 'instant' });
   document.title = path === '/' ? 'DriNet — Kết nối đúng người dạy' : `DriNet | ${path.split('/').pop()}`;
 }
