@@ -2,7 +2,7 @@ import { getTeachers } from './data.js';
 import { adminPage, bindAdminPage } from './admin.js';
 import { bindLoginPage, isAdmin, loginPage } from './auth.js';
 import { nav, footer } from './components.js';
-import { home, teacherList, profile, formPage, reviewPage, about, contact, terms, bindTeacherFilters } from './pages.js';
+import { home, teacherList, profile, formPage, reviewPage, about, contact, terms, bindStudentRegistration, bindTeacherFilters } from './pages.js';
 import { submitForm } from './utils.js';
 
 const app = document.querySelector('#app');
@@ -41,6 +41,7 @@ function render() {
 
   app.innerHTML = nav() + page() + footer();
   if (path === '/giao-vien') bindTeacherFilters();
+  if (path === '/dang-ky-hoc') bindStudentRegistration();
   if (path === '/admin' && isAdmin()) bindAdminPage();
   if (path === '/dang-nhap' || (path === '/admin' && !isAdmin())) bindLoginPage();
   window.scrollTo({ top: 0, behavior: 'instant' });
