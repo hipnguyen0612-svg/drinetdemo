@@ -1,8 +1,8 @@
-import { getTeachers } from './data.js';
+import { getTeachers, loadTeachers } from './data.js';
 import { adminPage, bindAdminPage } from './admin.js';
-import { bindLoginPage, isAdmin, loginPage } from './auth.js';
+import { bindLoginPage, initialiseAuth, isAdmin, loginPage } from './auth.js';
 import { nav, footer } from './components.js';
-import { home, teacherList, profile, formPage, reviewPage, about, contact, terms, bindStudentRegistration, bindTeacherFilters } from './pages.js';
+import { home, teacherList, profile, formPage, reviewPage, about, contact, terms, bindStudentRegistration, bindTeacherApplication, bindTeacherFilters } from './pages.js';
 import { submitForm } from './utils.js';
 
 const app = document.querySelector('#app');
@@ -34,7 +34,7 @@ function getPage(path) {
   return routes[path] || home;
 }
 
-function render() {
+async function render() {
   const rawRoute = location.hash.slice(1) || '/';
   const [path] = rawRoute.split('?');
   const page = getPage(path);
@@ -42,6 +42,7 @@ function render() {
   app.innerHTML = nav() + page() + footer();
   if (path === '/giao-vien') bindTeacherFilters();
   if (path === '/dang-ky-hoc') bindStudentRegistration();
+  if (path === '/dang-ky-giao-vien') bindTeacherApplication();
   if (path === '/admin' && isAdmin()) bindAdminPage();
   if (path === '/dang-nhap' || (path === '/admin' && !isAdmin())) bindLoginPage();
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -49,4 +50,13 @@ function render() {
 }
 
 window.addEventListener('hashchange', render);
-render();
+async function initialiseApp() {
+  try {
+    await Promise.all([initialiseAuth(), loadTeachers()]);
+  } catch (error) {
+    console.error('Không thể đồng bộ dữ liệu DriNet từ Supabase.', error);
+  }
+  render();
+}
+
+initialiseApp();

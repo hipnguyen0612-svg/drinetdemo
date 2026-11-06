@@ -2,6 +2,7 @@ import { getTeachers } from './data.js';
 import { teacherCard } from './components.js';
 import { getCurrentUser } from './auth.js';
 import { submitForm } from './utils.js';
+import { supabase } from './supabase.js';
 
 export function bindTeacherFilters() {
   const areaFilter = document.querySelector('#filter-area');
@@ -62,11 +63,70 @@ export function bindStudentRegistration() {
     teacherSelect.value = [...teacherSelect.options].some((option) => option.value === selected) ? selected : 'consultation';
   };
   areaSelect.addEventListener('change', renderTeacherOptions);
+  document.querySelector('.form-card')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    const selects = form.querySelectorAll('select');
+    const selectedTeacher = teachers.find((teacher) => teacher.slug === values.get('teacher'));
+    const { data: { session } } = await supabase.auth.getSession();
+    const payload = { full_name: values.get('name'), phone: values.get('phone'), email: values.get('email') || null, license_goal: selects[0].value, has_learner_permit: selects[1].value === 'Có', preferred_area: values.get('area'), preferred_time: selects[3].value, requested_teacher_id: selectedTeacher?.id || null, wants_consultation: !selectedTeacher, source: 'website', student_profile_id: session?.user.id || null };
+    const message = form.querySelector('.form-success');
+    try {
+      const { error } = await supabase.from('student_requests').insert(payload);
+      if (error) throw error;
+      form.reset(); message.textContent = 'Đã gửi yêu cầu. DriNet sẽ liên hệ với bạn trong thời gian sớm nhất.'; message.className = 'form-success show';
+    } catch (error) { message.textContent = error.message || 'Không thể gửi yêu cầu. Vui lòng thử lại.'; message.className = 'form-success show error'; }
+  });
 }
 
 export function formPage(kind) {
   if (kind === 'student') return studentRegistrationPage();
   return `<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">BẮT ĐẦU CÙNG DRINET</span><h1>Đăng ký tham gia DriNet</h1><p>Mở rộng cơ hội tiếp cận học viên bằng một hồ sơ chuyên nghiệp, minh bạch.</p></div></section><main class="container section"><form class="panel form-card" onsubmit="submitForm(event,'Cảm ơn bạn đã đăng ký tham gia! DriNet sẽ liên hệ để xác minh hồ sơ trong thời gian sớm nhất.')"><h3>Đăng ký tham gia DriNet</h3><div class="notice">&#128274; Tài liệu xác minh chỉ dành cho quản trị viên kiểm tra và tuyệt đối không hiển thị công khai trên website.</div><div class="form-grid"><div><label>Họ tên hoặc tên trung tâm *</label><input required></div><div><label>Số điện thoại *</label><input type="tel" required></div><div><label>Email</label><input type="email"></div><div><label>Loại hình *</label><select required><option value="">Chọn loại hình</option><option>Giáo viên độc lập</option><option>Trung tâm</option></select></div><div><label>Hạng bằng giảng dạy *</label><input required placeholder="Ví dụ: B, C1"></div><div><label>Số năm kinh nghiệm *</label><input type="number" required></div><div><label>Khu vực hoạt động *</label><input required placeholder="Ví dụ: TP. Pleiku"></div><div><label>Số giấy phép/chứng nhận *</label><input required></div><div><label>Scan bằng cấp & giấy phép *</label><input type="file" required accept=".pdf,image/*"></div><div><label>Học phí tham khảo *</label><input required placeholder="Ví dụ: 350.000đ/buổi"></div><div class="full"><label>Lịch trống (tùy chọn)</label><textarea rows="3" placeholder="Mô tả các khung giờ có thể nhận học viên"></textarea></div><div class="full check"><input id="terms" type="checkbox" required><label for="terms">Tôi đã đọc và đồng ý với <a href="#/dieu-khoan" style="color:var(--blue)">Điều khoản sử dụng và Chính sách bảo mật</a> của DriNet. *</label></div><div class="full"><button class="btn btn-primary" type="submit">Gửi đăng ký &rarr;</button></div></div><div class="form-success"></div></form></main>`;
+}
+
+function slugify(value) { return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
+
+export function bindTeacherApplication() {
+  const form = document.querySelector('.form-card');
+  if (!form) return;
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault(); event.stopImmediatePropagation();
+    const message = form.querySelector('.form-success');
+    const inputs = form.querySelectorAll('input');
+    const selects = form.querySelectorAll('select');
+    const textareas = form.querySelectorAll('textarea');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { location.hash = '#/dang-nhap'; return; }
+    const name = inputs[0].value.trim();
+    const licenses = inputs[3].value.split(',').map((item) => item.trim()).filter(Boolean).map((item) => item === 'B' ? 'Hạng B' : item);
+    const rawPrice = inputs[8].value.replace(/[^0-9]/g, '');
+    const payload = { profile_id: session.user.id, slug: `${slugify(name) || 'giao-vien'}-${session.user.id.slice(0, 8)}`, display_name: name, area: inputs[5].value.trim(), licenses, experience_years: Number(inputs[4].value) || 0, price_per_lesson: rawPrice ? Number(rawPrice) : null, center_name: selects[0].value === 'Trung tâm' ? name : null, bio: textareas[0].value.trim() || null, status: 'pending' };
+    try {
+      const { data: existing, error: existingError } = await supabase.from('teachers').select('id, status').eq('profile_id', session.user.id).maybeSingle();
+      if (existingError) throw existingError;
+      let teacher;
+      if (existing) {
+        if (!['pending', 'needs_revision'].includes(existing.status)) throw new Error('Tài khoản này đã có hồ sơ đang được duyệt hoặc đã được phê duyệt.');
+        const { data, error } = await supabase.from('teachers').update(payload).eq('id', existing.id).select('id').single();
+        if (error) throw error;
+        teacher = data;
+      } else {
+        const { data, error } = await supabase.from('teachers').insert(payload).select('id').single();
+        if (error) throw error;
+        teacher = data;
+      }
+      const file = inputs[7].files[0];
+      if (file) {
+        const path = `${session.user.id}/${teacher.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`;
+        const { error: uploadError } = await supabase.storage.from('teacher-documents').upload(path, file, { contentType: file.type });
+        if (uploadError) throw uploadError;
+        const { error: documentError } = await supabase.from('teacher_documents').insert({ teacher_id: teacher.id, document_type: 'teaching_certificate', storage_path: path, original_filename: file.name, mime_type: file.type, file_size: file.size });
+        if (documentError) throw documentError;
+      }
+      message.textContent = 'Đã gửi hồ sơ. DriNet sẽ xét duyệt và phản hồi cho bạn.'; message.className = 'form-success show'; form.reset();
+    } catch (error) { message.textContent = error.message || 'Không thể gửi hồ sơ. Vui lòng thử lại.'; message.className = 'form-success show error'; }
+  }, true);
 }
 export function reviewPage(){return `<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">CHIA SẺ TRẢI NGHIỆM</span><h1>Gửi đánh giá của bạn</h1><p>Ý kiến trung thực của bạn giúp cộng đồng học viên đưa ra lựa chọn tốt hơn.</p></div></section><main class="container section"><form class="panel form-card" onsubmit="submitForm(event,'Cảm ơn bạn đã gửi đánh giá! DriNet sẽ đối chiếu thông tin trước khi công khai.')"><div class="notice">&#8505; Đánh giá chỉ được công khai sau khi DriNet đối chiếu với giao dịch đã được xác nhận.</div><div class="form-grid"><div><label>Mã giao dịch hoặc số điện thoại đã đăng ký *</label><input required></div><div><label>Tên giáo viên *</label><input required></div><div><label>Đánh giá *</label><select required><option value="">Chọn số sao</option><option>&#9733;&#9733;&#9733;&#9733;&#9733; · 5 sao</option><option>&#9733;&#9733;&#9733;&#9733; · 4 sao</option><option>&#9733;&#9733;&#9733; · 3 sao</option><option>&#9733;&#9733; · 2 sao</option><option>&#9733; · 1 sao</option></select></div><div class="full"><label>Nhận xét ngắn (tối đa 500 ký tự) *</label><textarea required maxlength="500" rows="5" placeholder="Chia sẻ trải nghiệm học của bạn một cách tôn trọng và trung thực."></textarea></div><div class="full check"><input id="public-review" type="checkbox" required><label for="public-review">Tôi đồng ý để DriNet hiển thị đánh giá sau khi kiểm duyệt. *</label></div><div class="full"><button class="btn btn-primary">Gửi đánh giá &rarr;</button></div></div><div class="form-success"></div></form></main>`}
 export function about(){return `<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">CÂU CHUYỆN DRINET</span><h1>Kết nối minh bạch cho hành trình vững tay lái</h1></div></section><main class="container section prose"><h2>Vì sao DriNet ra đời?</h2><p>Nhiều người có nhu cầu học lái xe nhưng gặp khó khăn trong việc tìm kiếm giáo viên uy tín, minh bạch về học phí và có phong cách giảng dạy phù hợp. Trong khi đó, những giáo viên chuyên môn tốt lại có thể hạn chế cơ hội quảng bá bản thân một cách công bằng.</p><p>DriNet được xây dựng để giải quyết khoảng cách này, tạo ra nền tảng kết nối trực tiếp giữa học viên với giáo viên và trung tâm đào tạo. Mọi lựa chọn bắt đầu từ thông tin rõ ràng và nhu cầu thực tế của người học.</p><h2>Giá trị chúng tôi theo đuổi</h2><div class="values">${[['&#9672;','Minh bạch'],['&#10003;','Uy tín'],['&#9719;','Linh hoạt'],['&#9022;','An toàn'],['&harr;','Kết nối công bằng']].map(x=>`<div class="value"><div class="icon">${x[0]}</div><b>${x[1]}</b></div>`).join('')}</div><h2>Tầm nhìn</h2><p>Trở thành nền tảng kết nối học viên và giáo viên dạy lái đáng tin cậy, góp phần nâng cao chất lượng đào tạo và xây dựng văn hóa lái xe an toàn.</p></main>`}
