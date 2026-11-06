@@ -1,6 +1,6 @@
 import { getTeachers, loadTeachers } from './data.js';
 import { adminPage, bindAdminPage } from './admin.js';
-import { bindLoginPage, initialiseAuth, isAdmin, loginPage } from './auth.js';
+import { accountPage, bindAccountPage, bindLoginPage, getCurrentUser, initialiseAuth, isAdmin, loginPage } from './auth.js';
 import { nav, footer } from './components.js';
 import { home, teacherList, profile, formPage, reviewPage, about, contact, terms, bindStudentRegistration, bindTeacherApplication, bindTeacherFilters } from './pages.js';
 import { submitForm } from './utils.js';
@@ -21,11 +21,12 @@ const routes = {
   '/lien-he': contact,
   '/dieu-khoan': terms,
   '/dang-nhap': loginPage,
+  '/ho-so': accountPage,
   '/admin': adminPage,
 };
 
 function getPage(path) {
-  if (path === '/admin' && !isAdmin()) return loginPage;
+  if ((path === '/admin' && !isAdmin()) || (path === '/ho-so' && !getCurrentUser())) return loginPage;
   if (path.startsWith('/giao-vien/')) {
     const slug = decodeURIComponent(path.split('/').pop());
     return () => { const teachers = getTeachers(); return profile(teachers.find((teacher) => teacher.slug === slug) || teachers[0]); };
@@ -44,7 +45,8 @@ async function render() {
   if (path === '/dang-ky-hoc') bindStudentRegistration();
   if (path === '/dang-ky-giao-vien') bindTeacherApplication();
   if (path === '/admin' && isAdmin()) bindAdminPage();
-  if (path === '/dang-nhap' || (path === '/admin' && !isAdmin())) bindLoginPage();
+  if (path === '/dang-nhap' || (path === '/admin' && !isAdmin()) || (path === '/ho-so' && !getCurrentUser())) bindLoginPage();
+  if (path === '/ho-so' && getCurrentUser()) bindAccountPage();
   window.scrollTo({ top: 0, behavior: 'instant' });
   document.title = path === '/' ? 'DriNet — Kết nối đúng người dạy' : `DriNet | ${path.split('/').pop()}`;
 }

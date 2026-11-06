@@ -11,9 +11,9 @@ export function isAdmin() { return getCurrentUser()?.role === 'admin'; }
 export async function initialiseAuth() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) { localStorage.removeItem(SESSION_KEY); return null; }
-  const { data: profile, error } = await supabase.from('profiles').select('full_name, role').eq('id', session.user.id).single();
+  const { data: profile, error } = await supabase.from('profiles').select('full_name, phone, role').eq('id', session.user.id).single();
   if (error) throw error;
-  const user = { id: session.user.id, name: profile.full_name || session.user.email, email: session.user.email, role: profile.role, roleLabel: profile.role === 'admin' ? 'Quản trị viên' : profile.role === 'teacher' ? 'Giáo viên' : 'Học viên' };
+  const user = { id: session.user.id, name: profile.full_name || session.user.email, email: session.user.email, phone: profile.phone || '', role: profile.role, roleLabel: profile.role === 'admin' ? 'Quản trị viên' : profile.role === 'teacher' ? 'Giáo viên' : 'Học viên' };
   localStorage.setItem(SESSION_KEY, JSON.stringify(user));
   return user;
 }
@@ -41,6 +41,33 @@ export async function sendPasswordRecovery(email) {
   const { error } = await supabase.auth.resetPasswordForEmail(String(email).trim(), { redirectTo: `${location.origin}${location.pathname}` });
   if (error) throw error;
 }
+
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+
+export function accountPage() {
+  const user = getCurrentUser();
+  if (!user) return loginPage();
+  return `<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">TÀI KHOẢN DRINET</span><h1>Hồ sơ cá nhân</h1><p>Quản lý thông tin và bảo mật tài khoản của bạn.</p></div></section><main class="container section account-page"><div class="account-summary panel"><span class="account-avatar">${escapeHtml(user.name.charAt(0).toUpperCase())}</span><div><h2>${escapeHtml(user.name)}</h2><p>${escapeHtml(user.email)}</p><span class="tag">${escapeHtml(user.roleLabel)}</span></div></div><div class="account-grid"><form id="profile-form" class="panel login-form"><h2>Thông tin cá nhân</h2><p class="login-intro">Thông tin này được dùng để hỗ trợ các yêu cầu của bạn trên DriNet.</p><label>Họ và tên</label><input name="fullName" autocomplete="name" required value="${escapeHtml(user.name)}"><label>Số điện thoại hoặc Zalo</label><input name="phone" type="tel" autocomplete="tel" value="${escapeHtml(user.phone)}"><button class="btn btn-primary" type="submit">Lưu thông tin</button><p id="profile-message" class="admin-message" aria-live="polite"></p></form><div class="account-security"><form id="email-form" class="panel login-form"><h2>Đổi email</h2><p class="login-intro">Email hiện tại: <b>${escapeHtml(user.email)}</b></p><label>Email mới</label><input name="email" type="email" autocomplete="email" required><button class="btn btn-light" type="submit">Gửi yêu cầu đổi email</button><p id="email-message" class="admin-message" aria-live="polite"></p></form><form id="password-form" class="panel login-form"><h2>Đổi mật khẩu</h2><label>Mật khẩu mới</label><input name="password" type="password" autocomplete="new-password" minlength="6" required><label>Nhập lại mật khẩu mới</label><input name="confirmPassword" type="password" autocomplete="new-password" minlength="6" required><button class="btn btn-light" type="submit">Cập nhật mật khẩu</button><p id="password-message" class="admin-message" aria-live="polite"></p></form><button id="account-sign-out" class="text-button" type="button">Đăng xuất khỏi tài khoản</button></div></div></main>`;
+}
+
+export function bindAccountPage() {
+  const setMessage = (selector, text, isError = false) => { const message = document.querySelector(selector); message.textContent = text; message.className = `admin-message ${isError ? 'error' : 'success'}`; };
+  document.querySelector('#profile-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault(); const values = new FormData(event.currentTarget);
+    try { const { error } = await supabase.from('profiles').update({ full_name: String(values.get('fullName')).trim(), phone: String(values.get('phone')).trim() || null }).eq('id', getCurrentUser().id); if (error) throw error; const user = await initialiseAuth(); document.querySelector('.account-button span').textContent = user.name; document.querySelector('.account-summary h2').textContent = user.name; document.querySelector('.account-avatar').textContent = user.name.charAt(0).toUpperCase(); setMessage('#profile-message', 'Đã lưu thông tin cá nhân.'); } catch (error) { setMessage('#profile-message', error.message || 'Không thể lưu thông tin.', true); }
+  });
+  document.querySelector('#email-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault(); const email = String(new FormData(event.currentTarget).get('email')).trim();
+    try { const { error } = await supabase.auth.updateUser({ email }); if (error) throw error; setMessage('#email-message', 'Yêu cầu đã được gửi. Hãy kiểm tra email để xác nhận địa chỉ mới.'); event.currentTarget.reset(); } catch (error) { setMessage('#email-message', error.message || 'Không thể đổi email.', true); }
+  });
+  document.querySelector('#password-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault(); const values = new FormData(event.currentTarget); const password = String(values.get('password'));
+    if (password !== String(values.get('confirmPassword'))) { setMessage('#password-message', 'Hai mật khẩu mới không khớp.', true); return; }
+    try { const { error } = await supabase.auth.updateUser({ password }); if (error) throw error; setMessage('#password-message', 'Đã cập nhật mật khẩu.'); event.currentTarget.reset(); } catch (error) { setMessage('#password-message', error.message || 'Không thể cập nhật mật khẩu.', true); }
+  });
+  document.querySelector('#account-sign-out')?.addEventListener('click', async () => { await signOutFromSupabase(); location.hash = '#/'; });
+}
+
 
 export function loginPage() {
   const currentUser = getCurrentUser();
