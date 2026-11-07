@@ -40,3 +40,9 @@
 .status-pending,.status-new{background:#edf6ff!important;color:var(--blue)!important}
 .status-rejected,.status-cancelled{background:#ffebee!important;color:#c73535!important}
 .status-read{background:#f1f5f9!important;color:var(--muted)!important}
+
+/* Modern loading state */
+.drinet-loading-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px;text-align:center;min-height:180px}
+.drinet-spinner{width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:var(--blue);border-radius:50%;animation:drinet-spin .8s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes drinet-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.drinet-loading-text{margin-top:14px;font-size:14px;font-weight:600;color:var(--muted)}

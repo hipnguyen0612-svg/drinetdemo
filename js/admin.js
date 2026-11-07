@@ -31,6 +31,9 @@ const contactStatusLabel = {
   resolved: 'Đã xử lý',
 };
 
+const renderSpinner = (text = 'Vui lòng chờ trong giây lát…') =>
+  '<div class="drinet-loading-state"><div class="drinet-spinner"></div><p class="drinet-loading-text">' + escapeHtml(text) + '</p></div>';
+
 let currentTab = 'teachers';
 
 export function adminPage() {
@@ -72,7 +75,7 @@ async function renderTeachersTab() {
   if (title) title.textContent = 'Hồ sơ giáo viên';
   if (desc) desc.textContent = 'Xét duyệt, quản trị hồ sơ và cập nhật thông tin hiển thị công khai.';
 
-  container.innerHTML = '<p class="login-intro">Đang tải hồ sơ giáo viên…</p>';
+  container.innerHTML = renderSpinner('Đang tải hồ sơ giáo viên, vui lòng chờ…');
 
   const [
     { data: teachers, error: teachersError },
@@ -136,7 +139,7 @@ async function renderRequestsTab() {
   if (title) title.textContent = 'Yêu cầu tư vấn học lái';
   if (desc) desc.textContent = 'Danh sách học viên gửi nhu cầu tư vấn hoặc chọn giáo viên cụ thể.';
 
-  container.innerHTML = '<p class="login-intro">Đang tải danh sách yêu cầu…</p>';
+  container.innerHTML = renderSpinner('Đang tải danh sách yêu cầu, vui lòng chờ…');
 
   const [
     { data: requests, error },
@@ -192,7 +195,7 @@ async function renderReviewsTab() {
   if (title) title.textContent = 'Kiểm duyệt đánh giá học viên';
   if (desc) desc.textContent = 'Duyệt các đánh giá hợp lệ để hiển thị công khai trên hồ sơ giáo viên.';
 
-  container.innerHTML = '<p class="login-intro">Đang tải danh sách đánh giá…</p>';
+  container.innerHTML = renderSpinner('Đang tải danh sách đánh giá, vui lòng chờ…');
 
   const { data: reviews, error } = await supabase
     .from('reviews')
@@ -232,7 +235,7 @@ async function renderContactsTab() {
   if (title) title.textContent = 'Tin nhắn liên hệ';
   if (desc) desc.textContent = 'Theo dõi và xử lý các tin nhắn từ biểu mẫu liên hệ DriNet.';
 
-  container.innerHTML = '<p class="login-intro">Đang tải tin nhắn liên hệ…</p>';
+  container.innerHTML = renderSpinner('Đang tải tin nhắn liên hệ, vui lòng chờ…');
 
   const { data: contacts, error } = await supabase
     .from('contact_messages')

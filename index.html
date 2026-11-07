@@ -9,13 +9,28 @@
 </head>
 <body>
   <div id="app">
-    <main style="max-width:720px;margin:60px auto;padding:32px;font-family:'Be Vietnam Pro',sans-serif;color:#14243a;background:#fff;border:1px solid #dce5f0;border-radius:16px;box-shadow:0 16px 40px rgba(18,61,117,.1)">
-      <h1 style="margin-top:0;color:#082b59">Đang tải DriNet…</h1>
-      <p>Nếu thông báo này không tự biến mất, bạn đang mở tệp bằng <code>file:///</code>. Dự án sử dụng JavaScript module nên cần chạy qua web server.</p>
-      <p><b>Cách nhanh nhất:</b> trong VS Code, nhấp phải <code>index.html</code> và chọn <b>Open with Live Server</b>.</p>
-      <p>Sau đó truy cập địa chỉ dạng <code>http://127.0.0.1:5500/index.html</code>.</p>
-    </main>
+    <div class="app-boot-screen">
+      <div class="app-boot-brand">Dri<span>Net</span></div>
+      <div class="app-boot-spinner"></div>
+      <p class="app-boot-text">Vui lòng chờ trong giây lát…</p>
+    </div>
   </div>
+  <style>
+    .app-boot-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Be Vietnam Pro',system-ui,-apple-system,sans-serif;background:#f8fafc;padding:24px;text-align:center}
+    .app-boot-brand{font-size:26px;font-weight:800;letter-spacing:-.02em;color:#082b59;margin-bottom:20px;display:inline-flex;align-items:center;gap:6px}
+    .app-boot-brand span{color:#1268e8}
+    .app-boot-spinner{width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#1268e8;border-radius:50%;animation:boot-spin .8s cubic-bezier(.4,0,.2,1) infinite;margin-bottom:16px}
+    .app-boot-text{font-size:14px;color:#64748b;font-weight:500;margin:0}
+    @keyframes boot-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+  </style>
+  <script>
+    if (location.protocol === 'file:') {
+      document.addEventListener('DOMContentLoaded', () => {
+        const app = document.getElementById('app');
+        if (app) app.innerHTML = '<main style="max-width:540px;margin:80px auto;padding:32px;font-family:sans-serif;background:#fff;border:1px solid #dce5f0;border-radius:16px;box-shadow:0 16px 40px rgba(18,61,117,.1);text-align:center"><h2 style="color:#082b59;margin:0 0 10px">Cần chạy qua Web Server</h2><p style="color:#64748b;font-size:14px;line-height:1.6">Website sử dụng JavaScript Modules nên cần chạy qua HTTP Server.<br>Vui lòng mở tệp bằng <b>Live Server</b> trong VS Code hoặc chạy tệp <code>start-server.bat</code>.</p></main>';
+      });
+    }
+  </script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
