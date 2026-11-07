@@ -16,7 +16,7 @@ const requestStatusLabel = {
   matched: 'Đã ghép giáo viên',
   confirmed: 'Đã xác nhận học',
   cancelled: 'Đã hủy',
-  closed: 'Đã đóng',
+  closed: 'Đã học xong',
 };
 
 const reviewStatusLabel = {
@@ -178,7 +178,9 @@ async function renderRequestsTab() {
       '</div><div class="admin-btn-group">' +
       (req.status === 'new' ? '<button class="admin-btn admin-btn-primary" data-req-action="contacted" data-id="' + req.id + '" type="button">Đã liên hệ</button>' : '') +
       (['new', 'contacted'].includes(req.status) ? '<button class="admin-btn admin-btn-success" data-req-action="confirmed" data-id="' + req.id + '" type="button">Xác nhận học</button>' : '') +
-      (req.status !== 'cancelled' ? '<button class="admin-btn admin-btn-danger" data-req-action="cancelled" data-id="' + req.id + '" type="button">Hủy yêu cầu</button>' : '') +
+      (['new', 'contacted'].includes(req.status) ? '<button class="admin-btn admin-btn-danger" data-req-action="cancelled" data-id="' + req.id + '" type="button">Hủy yêu cầu</button>' : '') +
+      (req.status === 'confirmed' ? '<button class="admin-btn admin-btn-primary" data-req-action="closed" data-id="' + req.id + '" type="button">Học xong</button>' : '') +
+      (['confirmed', 'closed', 'cancelled'].includes(req.status) ? '<button class="admin-btn admin-btn-danger" data-req-delete="' + req.id + '" data-name="' + escapeHtml(req.full_name) + '" type="button">🗑 Xóa</button>' : '') +
       '</div></article>';
   }).join('');
 }
@@ -321,6 +323,7 @@ export function bindAdminPage() {
     const reqBtn = event.target.closest('[data-req-action]');
     const revBtn = event.target.closest('[data-review-action]');
     const contactBtn = event.target.closest('[data-contact-action]');
+    const reqDeleteBtn = event.target.closest('[data-req-delete]');
 
     try {
       if (viewDoc) {
@@ -362,9 +365,22 @@ export function bindAdminPage() {
       if (reqBtn) {
         const action = reqBtn.dataset.reqAction;
         const id = reqBtn.dataset.id;
+        if (action === 'cancelled' && !confirm('Bạn có chắc chắn muốn hủy yêu cầu này?')) return;
         const { error } = await supabase.from('student_requests').update({ status: action }).eq('id', id);
         if (error) throw error;
-        message.textContent = 'Đã cập nhật trạng thái yêu cầu học lái.';
+        message.textContent = action === 'closed' ? 'Đã cập nhật: Học viên đã học xong.' : 'Đã cập nhật trạng thái yêu cầu học lái.';
+        message.className = 'admin-message success';
+        await loadCurrentTab();
+        return;
+      }
+
+      if (reqDeleteBtn) {
+        const id = reqDeleteBtn.dataset.reqDelete;
+        const name = reqDeleteBtn.dataset.name || 'yêu cầu này';
+        if (!confirm('Bạn có chắc chắn muốn xóa vĩnh viễn thông tin của "' + name + '"?')) return;
+        const { error } = await supabase.from('student_requests').delete().eq('id', id);
+        if (error) throw error;
+        message.textContent = 'Đã xóa thông tin của "' + name + '" khỏi hệ thống.';
         message.className = 'admin-message success';
         await loadCurrentTab();
         return;

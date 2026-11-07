@@ -35,7 +35,7 @@
 .admin-btn-success{background:#e7f8ef;color:var(--green);border-color:#bbf7d0}
 .admin-btn-danger{background:#fff4f4;color:#b72626;border-color:#fecaca}
 .admin-doc-link{display:inline-flex;align-items:center;gap:4px;margin-top:6px;font-size:12px;color:var(--blue);font-weight:700}
-.status-approved,.status-confirmed,.status-resolved{background:#e7f8ef!important;color:var(--green)!important}
+.status-approved,.status-confirmed,.status-resolved,.status-closed{background:#e7f8ef!important;color:var(--green)!important}
 .status-needs_revision,.status-contacted{background:#fff4e6!important;color:#c06800!important}
 .status-pending,.status-new{background:#edf6ff!important;color:var(--blue)!important}
 .status-rejected,.status-cancelled{background:#ffebee!important;color:#c73535!important}
