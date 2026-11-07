@@ -2,7 +2,7 @@ import { getTeachers, loadTeachers } from './data.js';
 import { adminPage, bindAdminPage } from './admin.js';
 import { accountPage, bindAccountPage, bindLoginPage, getCurrentUser, initialiseAuth, isAdmin, loginPage } from './auth.js';
 import { nav, footer } from './components.js';
-import { home, teacherList, profile, formPage, reviewPage, about, contact, terms, bindStudentRegistration, bindTeacherApplication, bindTeacherFilters } from './pages.js';
+import { home, teacherList, profile, formPage, reviewPage, about, contact, terms, bindStudentRegistration, bindTeacherApplication, bindTeacherFilters, bindReviewPage, bindContactPage, bindTeacherProfile } from './pages.js';
 import { submitForm } from './utils.js';
 
 const app = document.querySelector('#app');
@@ -29,7 +29,10 @@ function getPage(path) {
   if ((path === '/admin' && !isAdmin()) || (path === '/ho-so' && !getCurrentUser())) return loginPage;
   if (path.startsWith('/giao-vien/')) {
     const slug = decodeURIComponent(path.split('/').pop());
-    return () => { const teachers = getTeachers(); return profile(teachers.find((teacher) => teacher.slug === slug) || teachers[0]); };
+    return () => {
+      const teachers = getTeachers();
+      return profile(teachers.find((teacher) => teacher.slug === slug) || null);
+    };
   }
 
   return routes[path] || home;
@@ -44,6 +47,13 @@ async function render() {
   if (path === '/giao-vien') bindTeacherFilters();
   if (path === '/dang-ky-hoc') bindStudentRegistration();
   if (path === '/dang-ky-giao-vien') bindTeacherApplication();
+  if (path === '/danh-gia') bindReviewPage();
+  if (path === '/lien-he') bindContactPage();
+  if (path.startsWith('/giao-vien/')) {
+    const slug = decodeURIComponent(path.split('/').pop());
+    const teacher = getTeachers().find((t) => t.slug === slug);
+    if (teacher) bindTeacherProfile(teacher);
+  }
   if (path === '/admin' && isAdmin()) bindAdminPage();
   if (path === '/dang-nhap' || (path === '/admin' && !isAdmin()) || (path === '/ho-so' && !getCurrentUser())) bindLoginPage();
   if (path === '/ho-so' && getCurrentUser()) bindAccountPage();

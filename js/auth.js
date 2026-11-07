@@ -92,7 +92,7 @@ export function bindLoginPage() {
   const showError = (error) => {
     const text = String(error?.message || '');
     if (!message) return;
-    message.textContent = /invalid login credentials/i.test(text) ? 'Email hoặc mật khẩu không đúng. Tài khoản demo cũ không còn sử dụng được; hãy dùng tài khoản Supabase thật hoặc chọn “Quên mật khẩu?”.' : /email not confirmed/i.test(text) ? 'Email chưa được xác nhận. Hãy kiểm tra hộp thư của bạn rồi thử lại.' : text || 'Không thể thực hiện yêu cầu. Vui lòng thử lại.';
+    message.textContent = /invalid login credentials/i.test(text) ? 'Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại hoặc chọn “Quên mật khẩu?”.' : /email not confirmed/i.test(text) ? 'Email chưa được xác nhận. Hãy kiểm tra hộp thư của bạn rồi thử lại.' : text || 'Không thể thực hiện yêu cầu. Vui lòng thử lại.';
     message.className = 'admin-message error';
   };
   document.querySelector('#login-form')?.addEventListener('submit', async (event) => {

@@ -1,7 +1,7 @@
 import { getTeachers } from './data.js';
 import { teacherCard } from './components.js';
 import { getCurrentUser } from './auth.js';
-import { submitForm } from './utils.js';
+import { escapeHtml, slugify } from './utils.js';
 import { supabase } from './supabase.js';
 
 export function bindTeacherFilters() {
@@ -12,99 +12,191 @@ export function bindTeacherFilters() {
   const resultsCount = document.querySelector('#teacher-results-count');
   const resultsGrid = document.querySelector('#teacher-results');
 
-  if (!areaFilter || !licenseFilter || !reviewFilter || !applyButton || !resultsCount || !resultsGrid) return;
+  if (!areaFilter || !licenseFilter || !reviewFilter || !resultsCount || !resultsGrid) return;
 
   const applyFilters = () => {
     const filteredTeachers = getTeachers().filter((teacher) => {
       const matchesArea = areaFilter.value === 'all' || teacher.area === areaFilter.value;
-      const matchesLicense = licenseFilter.value === 'all' || teacher.licenses.includes(licenseFilter.value);
+      const matchesLicense = licenseFilter.value === 'all' || (teacher.licenses || '').includes(licenseFilter.value);
       const matchesReviews = reviewFilter.value === 'all' || teacher.reviews > 0;
       return matchesArea && matchesLicense && matchesReviews;
     });
 
     const total = filteredTeachers.length;
     resultsCount.innerHTML = total
-      ? `Hiển thị <b>${total} giáo viên</b> phù hợp`
+      ? 'Hiển thị <b>' + total + ' giáo viên</b> phù hợp'
       : 'Không tìm thấy giáo viên phù hợp với bộ lọc đã chọn.';
     resultsGrid.innerHTML = total
       ? filteredTeachers.map(teacherCard).join('')
       : '<div class="empty-results">Hãy thử chọn khu vực hoặc hạng bằng khác để xem thêm giáo viên.</div>';
   };
 
-  applyButton.addEventListener('click', applyFilters);
+  applyButton?.addEventListener('click', applyFilters);
   [areaFilter, licenseFilter, reviewFilter].forEach((filter) => filter.addEventListener('change', applyFilters));
 }
 
-export function home(){const teachers=getTeachers();return `<section class="hero"><div class="container"><span class="eyebrow"><i></i> NỀN TẢNG KẾT NỐI TẠI GIA LAI</span><h1>Tìm giáo viên dạy lái minh bạch tại Gia Lai</h1><p>Xem hồ sơ, so sánh học phí và đọc đánh giá từ học viên trước khi chọn.</p><div class="actions"><a class="btn btn-primary" href="#/giao-vien">Tìm giáo viên</a><a class="btn btn-light" href="#/dang-ky-hoc">Đăng ký tư vấn miễn phí</a></div><div class="trustline"><span><b>100%</b>Hồ sơ được kiểm tra</span><span><b>Minh bạch</b>Học phí tham khảo</span><span><b>An tâm</b>Đánh giá kiểm duyệt</span></div></div></section><section class="section container"><div class="section-head"><span class="kicker">VÌ SAO LÀ DRINET</span><h2>Chủ động chọn người đồng hành trên hành trình học lái</h2><p>Thông tin rõ ràng hơn để bạn đưa ra lựa chọn phù hợp hơn.</p></div><div class="grid3"><div class="benefit"><div class="icon">&#8363;</div><h3>Minh bạch học phí</h3><p>Tham khảo và so sánh mức học phí trước khi lựa chọn lộ trình học.</p></div><div class="benefit"><div class="icon">&#10003;</div><h3>Hồ sơ được kiểm tra</h3><p>Thông tin giáo viên được xác minh trước khi hiển thị trên nền tảng.</p></div><div class="benefit"><div class="icon">&#9733;</div><h3>Đánh giá từ học viên thật</h3><p>Chỉ hiển thị đánh giá đã được kiểm duyệt và đối chiếu.</p></div></div></section><section class="section process"><div class="container"><div class="section-head"><span class="kicker">CÁCH DRINET HOẠT ĐỘNG</span><h2>Đơn giản để bắt đầu, rõ ràng trong từng bước</h2></div><div class="steps"><div class="step"><span class="step-no">01</span><h3>Tìm kiếm</h3><p>Lọc theo khu vực, hạng bằng và đánh giá.</p></div><div class="step"><span class="step-no">02</span><h3>Xem hồ sơ</h3><p>Khám phá kinh nghiệm, học phí, lịch trống.</p></div><div class="step"><span class="step-no">03</span><h3>Đăng ký tư vấn</h3><p>Gửi nhu cầu học chỉ trong vài phút.</p></div><div class="step"><span class="step-no">04</span><h3>Kết nối phù hợp</h3><p>DriNet hỗ trợ kết nối với giáo viên phù hợp.</p></div></div></div></section><section class="section container"><div class="teacher-row"><div class="section-head"><span class="kicker">GIÁO VIÊN NỔI BẬT</span><h2>Đã xác minh, sẵn sàng đồng hành</h2></div><a class="btn btn-light" href="#/giao-vien">Xem tất cả</a></div><div class="teachers">${teachers.map(teacherCard).join('')}</div></section><section class="cta-band"><div class="container"><h2>Sẵn sàng bắt đầu hành trình học lái?</h2><p>Tìm người dạy phù hợp với lịch trình và nhu cầu của riêng bạn.</p><a class="btn btn-primary" href="#/giao-vien">Tìm giáo viên ngay &rarr;</a></div></section>`}
-export function teacherList(){const teachers=getTeachers();return `<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">KHÁM PHÁ GIÁO VIÊN</span><h1>Tìm người dạy phù hợp với bạn</h1><p>Lọc và so sánh các giáo viên đã được DriNet xác minh tại Gia Lai.</p></div></section><main class="container section"><div class="filters"><div class="filter-group"><label>Khu vực</label><select id="filter-area"><option value="all">Tất cả khu vực</option><option value="TP. Pleiku">TP. Pleiku</option><option value="Chư Sê">Chư Sê</option></select></div><div class="filter-group"><label>Hạng bằng</label><select id="filter-license"><option value="all">Tất cả hạng bằng</option><option value="Hạng B">Hạng B</option><option value="C1">Hạng C1</option></select></div><div class="filter-group"><label>Đánh giá</label><select id="filter-review"><option value="has-reviews">Có đánh giá</option><option value="all">Tất cả hồ sơ</option></select></div><button id="apply-teacher-filters" class="btn btn-primary" type="button">Lọc kết quả</button></div><div class="notice">&#8505; Chỉ các hồ sơ đã xác minh mới được hiển thị công khai. Thông tin là dữ liệu minh họa.</div><div class="teacher-row"><p id="teacher-results-count" style="font-size:14px;color:var(--muted)">Hiển thị <b>${teachers.length} giáo viên</b> phù hợp</p></div><div id="teacher-results" class="teachers">${teachers.map(teacherCard).join('')}</div></main>`}
-export function profile(t){return `<section class="page-hero"><div class="container"><a href="#/giao-vien" style="font-size:13px;color:#b9dcff">&larr; Quay lại danh sách giáo viên</a><h1>Hồ sơ giáo viên</h1></div></section><main class="container section"><div class="profile"><aside class="profile-image"><img src="${t.img}" alt="${t.name}"></aside><div><span class="tag">&#10003; Đã xác minh hồ sơ</span><h1>${t.name}</h1><p style="color:var(--muted)">${t.bio}</p><div class="info-grid"><div class="info-item"><b>Kinh nghiệm</b>${t.exp}</div><div class="info-item"><b>Hạng giảng dạy</b>${t.licenses}</div><div class="info-item"><b>Khu vực hoạt động</b>${t.area}</div><div class="info-item"><b>Trung tâm liên kết</b>${t.center}</div></div><div class="panel" style="padding:16px;margin-bottom:20px"><b>Học phí tham khảo: <span style="color:var(--blue)">${t.price}</span></b><p style="font-size:12px;color:var(--muted);margin:5px 0 0">Mức phí tham khảo, có thể thay đổi tùy theo lộ trình và nhu cầu học.</p></div><a class="btn btn-primary" href="#/dang-ky-hoc?teacher=${encodeURIComponent(t.name)}">Yêu cầu tư vấn với giáo viên này &rarr;</a></div></div><div class="grid3" style="margin-top:40px;grid-template-columns:1fr 1fr"><div class="panel"><h3>Lịch trống trong tuần</h3><div class="schedule"><span class="slot">T2 · Sáng</span><span class="slot">T3 · Chiều</span><span class="slot">T5 · Sáng</span><span class="slot">T7 · Cả ngày</span></div></div><div class="panel"><h3>Đánh giá học viên <span class="rating">&#9733; ${t.rating} · ${t.reviews} đánh giá</span></h3><div class="reviews"><div class="review"><b>Hoàng Anh · &#9733;&#9733;&#9733;&#9733;&#9733;</b><p>Thầy hướng dẫn kỹ, dễ hiểu và luôn tạo cảm giác thoải mái khi thực hành. <em>(Dữ liệu minh họa)</em></p></div><div class="review"><b>Minh Thư · &#9733;&#9733;&#9733;&#9733;&#9733;</b><p>Lịch học linh hoạt, phù hợp với người đi làm. <em>(Dữ liệu minh họa)</em></p></div></div></div></div></main>`}
-function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]); }
+export function home() {
+  const teachers = getTeachers();
+  return '<section class="hero"><div class="container"><span class="eyebrow"><i></i> NỀN TẢNG KẾT NỐI TẠI GIA LAI</span><h1>Tìm giáo viên dạy lái minh bạch tại Gia Lai</h1><p>Xem hồ sơ, so sánh học phí và đọc đánh giá từ học viên trước khi chọn.</p><div class="actions"><a class="btn btn-primary" href="#/giao-vien">Tìm giáo viên</a><a class="btn btn-light" href="#/dang-ky-hoc">Đăng ký tư vấn miễn phí</a></div><div class="trustline"><span><b>100%</b>Hồ sơ được kiểm tra</span><span><b>Minh bạch</b>Học phí tham khảo</span><span><b>An tâm</b>Đánh giá kiểm duyệt</span></div></div></section><section class="section container"><div class="section-head"><span class="kicker">VÌ SAO LÀ DRINET</span><h2>Chủ động chọn người đồng hành trên hành trình học lái</h2><p>Thông tin rõ ràng hơn để bạn đưa ra lựa chọn phù hợp hơn.</p></div><div class="grid3"><div class="benefit"><div class="icon">&#8363;</div><h3>Minh bạch học phí</h3><p>Tham khảo và so sánh mức học phí trước khi lựa chọn lộ trình học.</p></div><div class="benefit"><div class="icon">&#10003;</div><h3>Hồ sơ được kiểm tra</h3><p>Thông tin giáo viên được xác minh trước khi hiển thị trên nền tảng.</p></div><div class="benefit"><div class="icon">&#9733;</div><h3>Đánh giá từ học viên thật</h3><p>Chỉ hiển thị đánh giá đã được kiểm duyệt và đối chiếu.</p></div></div></section><section class="section process"><div class="container"><div class="section-head"><span class="kicker">CÁCH DRINET HOẠT ĐỘNG</span><h2>Đơn giản để bắt đầu, rõ ràng trong từng bước</h2></div><div class="steps"><div class="step"><span class="step-no">01</span><h3>Tìm kiếm</h3><p>Lọc theo khu vực, hạng bằng và đánh giá.</p></div><div class="step"><span class="step-no">02</span><h3>Xem hồ sơ</h3><p>Khám phá kinh nghiệm, học phí, lịch trống.</p></div><div class="step"><span class="step-no">03</span><h3>Đăng ký tư vấn</h3><p>Gửi nhu cầu học chỉ trong vài phút.</p></div><div class="step"><span class="step-no">04</span><h3>Kết nối phù hợp</h3><p>DriNet hỗ trợ kết nối với giáo viên phù hợp.</p></div></div></div></section><section class="section container"><div class="teacher-row"><div class="section-head"><span class="kicker">GIÁO VIÊN NỔI BẬT</span><h2>Đã xác minh, sẵn sàng đồng hành</h2></div><a class="btn btn-light" href="#/giao-vien">Xem tất cả</a></div><div class="teachers">' + (teachers.length ? teachers.slice(0, 6).map(teacherCard).join('') : '<p class="login-intro">Đang tải danh sách giáo viên…</p>') + '</div></section><section class="cta-band"><div class="container"><h2>Sẵn sàng bắt đầu hành trình học lái?</h2><p>Tìm người dạy phù hợp với lịch trình và nhu cầu của riêng bạn.</p><a class="btn btn-primary" href="#/giao-vien">Tìm giáo viên ngay &rarr;</a></div></section>';
+}
+
+export function teacherList() {
+  const teachers = getTeachers();
+  const areas = [...new Set(teachers.map((t) => t.area).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
+  const allLicenses = [...new Set(teachers.flatMap((t) => (t.licenses || '').split(',').map((item) => item.trim())).filter(Boolean))].sort();
+  return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">KHÁM PHÁ GIÁO VIÊN</span><h1>Tìm người dạy phù hợp với bạn</h1><p>Lọc và so sánh các giáo viên đã được DriNet xác minh tại Gia Lai.</p></div></section><main class="container section"><div class="filters"><div class="filter-group"><label>Khu vực</label><select id="filter-area"><option value="all">Tất cả khu vực</option>' + areas.map((area) => '<option value="' + escapeHtml(area) + '">' + escapeHtml(area) + '</option>').join('') + '</select></div><div class="filter-group"><label>Hạng bằng</label><select id="filter-license"><option value="all">Tất cả hạng bằng</option>' + allLicenses.map((lic) => '<option value="' + escapeHtml(lic) + '">' + escapeHtml(lic) + '</option>').join('') + '</select></div><div class="filter-group"><label>Đánh giá</label><select id="filter-review"><option value="all">Tất cả hồ sơ</option><option value="has-reviews">Có đánh giá</option></select></div><button id="apply-teacher-filters" class="btn btn-primary" type="button">Lọc kết quả</button></div><div class="notice">&#8505; Chỉ các hồ sơ giáo viên đã qua kiểm tra và xác minh mới được hiển thị công khai trên nền tảng.</div><div class="teacher-row"><p id="teacher-results-count" style="font-size:14px;color:var(--muted)">Hiển thị <b>' + teachers.length + ' giáo viên</b> phù hợp</p></div><div id="teacher-results" class="teachers">' + (teachers.length ? teachers.map(teacherCard).join('') : '<div class="empty-results">Chưa có giáo viên nào được phê duyệt hiển thị.</div>') + '</div></main>';
+}
+
+export function profile(t) {
+  if (!t) {
+    return '<main class="container section"><div class="panel" style="padding:32px;text-align:center"><h2>Không tìm thấy giáo viên</h2><p style="color:var(--muted);margin:8px 0 20px">Hồ sơ này không tồn tại hoặc chưa được phê duyệt.</p><a class="btn btn-primary" href="#/giao-vien">&larr; Quay lại danh sách giáo viên</a></div></main>';
+  }
+  return '<section class="page-hero"><div class="container"><a href="#/giao-vien" style="font-size:13px;color:#b9dcff">&larr; Quay lại danh sách giáo viên</a><h1>Hồ sơ giáo viên</h1></div></section><main class="container section"><div class="profile"><aside class="profile-image"><img src="' + escapeHtml(t.img) + '" alt="' + escapeHtml(t.name) + '"></aside><div><span class="tag">&#10003; Đã xác minh hồ sơ</span><h1>' + escapeHtml(t.name) + '</h1><p style="color:var(--muted)">' + escapeHtml(t.bio) + '</p><div class="info-grid"><div class="info-item"><b>Kinh nghiệm</b>' + escapeHtml(t.exp) + '</div><div class="info-item"><b>Hạng giảng dạy</b>' + escapeHtml(t.licenses) + '</div><div class="info-item"><b>Khu vực hoạt động</b>' + escapeHtml(t.area) + '</div><div class="info-item"><b>Trung tâm liên kết</b>' + escapeHtml(t.center) + '</div></div><div class="panel" style="padding:16px;margin-bottom:20px"><b>Học phí tham khảo: <span style="color:var(--blue)">' + escapeHtml(t.price) + '</span></b><p style="font-size:12px;color:var(--muted);margin:5px 0 0">Mức phí tham khảo, có thể thay đổi tùy theo lộ trình và nhu cầu học.</p></div><a class="btn btn-primary" href="#/dang-ky-hoc?teacher=' + encodeURIComponent(t.slug) + '">Yêu cầu tư vấn với giáo viên này &rarr;</a></div></div><div class="grid3" style="margin-top:40px;grid-template-columns:1fr 1fr"><div class="panel"><h3>Lịch trống trong tuần</h3><div class="schedule"><span class="slot">T2 · Sáng</span><span class="slot">T3 · Chiều</span><span class="slot">T5 · Sáng</span><span class="slot">T7 · Cả ngày</span></div></div><div class="panel"><h3>Đánh giá học viên <span class="rating">&#9733; ' + escapeHtml(t.rating) + ' · ' + escapeHtml(t.reviews) + ' lượt đánh giá</span></h3><div id="teacher-profile-reviews" class="reviews" data-teacher-id="' + escapeHtml(t.id) + '"><p style="color:var(--muted)">Đang tải đánh giá…</p></div><div style="margin-top:16px"><a class="btn btn-light" style="width:100%" href="#/danh-gia?teacher=' + encodeURIComponent(t.slug) + '">Gửi đánh giá cho giáo viên &rarr;</a></div></div></div></main>';
+}
+
+export async function bindTeacherProfile(teacher) {
+  if (!teacher?.id) return;
+  const container = document.querySelector('#teacher-profile-reviews');
+  if (!container) return;
+  try {
+    const { data, error } = await supabase.from('reviews').select('student_name, rating, comment, created_at').eq('teacher_id', teacher.id).eq('status', 'approved').order('created_at', { ascending: false });
+    if (error) throw error;
+    if (data && data.length) {
+      container.innerHTML = data.map((rev) => '<div class="review"><b>' + escapeHtml(rev.student_name) + ' · ' + '★'.repeat(rev.rating) + '☆'.repeat(5 - rev.rating) + '</b><p>' + escapeHtml(rev.comment) + '</p></div>').join('');
+    } else {
+      container.innerHTML = '<p style="color:var(--muted);font-size:14px">Đánh giá chung: <b>' + escapeHtml(teacher.rating) + ' / 5.0</b> (' + escapeHtml(teacher.reviews) + ' lượt đánh giá hoàn thành). Chưa có nhận xét chi tiết nào được công bố.</p>';
+    }
+  } catch {
+    container.innerHTML = '<p style="color:var(--muted);font-size:14px">Đánh giá chung: <b>' + escapeHtml(teacher.rating) + ' / 5.0</b> (' + escapeHtml(teacher.reviews) + ' lượt đánh giá hoàn thành).</p>';
+  }
+}
 
 function studentRegistrationPage() {
   const currentUser = getCurrentUser();
-  const requestedTeacher = new URLSearchParams(location.hash.split('?')[1] || '').get('teacher') || '';
+  const queryTeacher = new URLSearchParams(location.hash.split('?')[1] || '').get('teacher') || '';
   const teachers = getTeachers();
   const areas = [...new Set(teachers.map((teacher) => teacher.area).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
-  const selectedTeacher = teachers.find((teacher) => teacher.slug === requestedTeacher);
+  const selectedTeacher = teachers.find((teacher) => teacher.slug === queryTeacher || teacher.name === queryTeacher);
   const selectedArea = selectedTeacher?.area || '';
-  const teacherOptions = (area) => teachers.filter((teacher) => !area || teacher.area === area).map((teacher) => `<option value="${escapeHtml(teacher.slug)}"${teacher.slug === requestedTeacher ? ' selected' : ''}>${escapeHtml(teacher.name)} · ${escapeHtml(teacher.area)}</option>`).join('');
-  return `<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">BẮT ĐẦU CÙNG DRINET</span><h1>Đăng ký tư vấn học lái</h1><p>Chỉ mất vài phút để DriNet hiểu nhu cầu và hỗ trợ bạn.</p></div></section><main class="container section"><form class="panel form-card" onsubmit="submitForm(event,'Cảm ơn bạn đã đăng ký! DriNet sẽ liên hệ để hỗ trợ bạn trong thời gian sớm nhất.')"><h3>Đăng ký tư vấn học lái</h3><div class="notice">&#128274; DriNet sẽ dựa trên thông tin của bạn để kết nối với giáo viên hoặc trung tâm phù hợp.</div><div class="form-grid"><div><label>Họ và tên *</label><input name="name" required autocomplete="name" value="${escapeHtml(currentUser?.name)}"></div><div><label>Số điện thoại hoặc Zalo *</label><input name="phone" type="tel" required autocomplete="tel"></div><div><label>Email</label><input name="email" type="email" autocomplete="email" value="${escapeHtml(currentUser?.email)}"></div><div><label>Hạng bằng muốn học *</label><select required><option value="">Chọn hạng bằng</option><option>B</option><option>C1</option><option>Khác</option></select></div><div><label>Đã có giấy phép học viên? *</label><select required><option value="">Chọn thông tin</option><option>Có</option><option>Chưa</option></select></div><div><label for="registration-area">Khu vực thuận tiện *</label><select id="registration-area" name="area" required><option value="">Chọn khu vực</option>${areas.map((area) => `<option value="${escapeHtml(area)}"${area === selectedArea ? ' selected' : ''}>${escapeHtml(area)}</option>`).join('')}</select></div><div><label>Khung giờ học ưa thích</label><select><option>Sáng</option><option>Chiều</option><option>Tối</option><option>Cuối tuần</option></select></div><div><label for="registration-teacher">Giáo viên mong muốn</label><select id="registration-teacher" name="teacher"><option value="consultation"${requestedTeacher ? '' : ' selected'}>Nhờ DriNet tư vấn</option>${teacherOptions(selectedArea)}</select></div><div class="full"><label>Biết DriNet qua đâu?</label><select><option>Facebook</option><option>TikTok</option><option>Bạn bè</option><option>Trung tâm</option><option>Khác</option></select></div><div class="full check"><input id="terms" type="checkbox" required><label for="terms">Tôi đã đọc và đồng ý với <a href="#/dieu-khoan" style="color:var(--blue)">Điều khoản sử dụng và Chính sách bảo mật</a> của DriNet. *</label></div><div class="full"><button class="btn btn-primary" type="submit">Gửi đăng ký &rarr;</button></div></div><div class="form-success"></div></form></main>`;
+  const teacherOptions = (area) => teachers.filter((teacher) => !area || teacher.area === area).map((teacher) => '<option value="' + escapeHtml(teacher.slug) + '"' + (selectedTeacher?.slug === teacher.slug ? ' selected' : '') + '>' + escapeHtml(teacher.name) + ' · ' + escapeHtml(teacher.area) + '</option>').join('');
+
+  return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">BẮT ĐẦU CÙNG DRINET</span><h1>Đăng ký tư vấn học lái</h1><p>Chỉ mất vài phút để DriNet hiểu nhu cầu và hỗ trợ bạn.</p></div></section><main class="container section"><form id="student-reg-form" class="panel form-card"><h3>Đăng ký tư vấn học lái</h3><div class="notice">&#128274; DriNet sẽ dựa trên thông tin của bạn để kết nối với giáo viên hoặc trung tâm phù hợp.</div><div class="form-grid"><div><label>Họ và tên *</label><input name="name" required autocomplete="name" value="' + escapeHtml(currentUser?.name) + '"></div><div><label>Số điện thoại hoặc Zalo *</label><input name="phone" type="tel" required autocomplete="tel" value="' + escapeHtml(currentUser?.phone) + '"></div><div><label>Email</label><input name="email" type="email" autocomplete="email" value="' + escapeHtml(currentUser?.email) + '"></div><div><label>Hạng bằng muốn học *</label><select name="licenseGoal" required><option value="">Chọn hạng bằng</option><option value="Hạng B">Hạng B</option><option value="Hạng C1">Hạng C1</option><option value="Khác">Khác</option></select></div><div><label>Đã có giấy phép học viên? *</label><select name="hasLearnerPermit" required><option value="">Chọn thông tin</option><option value="true">Có</option><option value="false">Chưa</option></select></div><div><label for="registration-area">Khu vực thuận tiện *</label><select id="registration-area" name="area" required><option value="">Chọn khu vực</option>' + areas.map((area) => '<option value="' + escapeHtml(area) + '"' + (area === selectedArea ? ' selected' : '') + '>' + escapeHtml(area) + '</option>').join('') + '</select></div><div><label>Khung giờ học ưa thích</label><select name="preferredTime"><option value="Sáng">Sáng</option><option value="Chiều">Chiều</option><option value="Tối">Tối</option><option value="Cuối tuần">Cuối tuần</option><option value="Linh hoạt">Linh hoạt</option></select></div><div><label for="registration-teacher">Giáo viên mong muốn</label><select id="registration-teacher" name="teacher"><option value="consultation"' + (selectedTeacher ? '' : ' selected') + '>Nhờ DriNet tư vấn</option>' + teacherOptions(selectedArea) + '</select></div><div class="full check"><input id="terms" type="checkbox" required><label for="terms">Tôi đã đọc và đồng ý với <a href="#/dieu-khoan" style="color:var(--blue)">Điều khoản sử dụng và Chính sách bảo mật</a> của DriNet. *</label></div><div class="full"><button class="btn btn-primary" type="submit">Gửi yêu cầu tư vấn &rarr;</button></div></div><div class="form-success"></div></form></main>';
 }
 
 export function bindStudentRegistration() {
-  const areaSelect = document.querySelector('#registration-area');
-  const teacherSelect = document.querySelector('#registration-teacher');
+  const form = document.querySelector('#student-reg-form');
+  if (!form) return;
+  const areaSelect = form.querySelector('#registration-area');
+  const teacherSelect = form.querySelector('#registration-teacher');
   if (!areaSelect || !teacherSelect) return;
   const teachers = getTeachers();
+
   const renderTeacherOptions = () => {
     const selected = teacherSelect.value;
-    const availableTeachers = teachers.filter((teacher) => teacher.area === areaSelect.value);
-    teacherSelect.innerHTML = `<option value="consultation">Nhờ DriNet tư vấn</option>${availableTeachers.map((teacher) => `<option value="${escapeHtml(teacher.slug)}">${escapeHtml(teacher.name)} · ${escapeHtml(teacher.area)}</option>`).join('')}`;
-    teacherSelect.value = [...teacherSelect.options].some((option) => option.value === selected) ? selected : 'consultation';
+    const matched = teachers.filter((teacher) => !areaSelect.value || teacher.area === areaSelect.value);
+    teacherSelect.innerHTML = '<option value="consultation">Nhờ DriNet tư vấn</option>' +
+      matched.map((t) => '<option value="' + escapeHtml(t.slug) + '">' + escapeHtml(t.name) + ' · ' + escapeHtml(t.area) + '</option>').join('');
+    if ([...teacherSelect.options].some((opt) => opt.value === selected)) {
+      teacherSelect.value = selected;
+    }
   };
   areaSelect.addEventListener('change', renderTeacherOptions);
-  document.querySelector('.form-card')?.addEventListener('submit', async (event) => {
+
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const form = event.currentTarget;
-    const values = new FormData(form);
-    const selects = form.querySelectorAll('select');
-    const selectedTeacher = teachers.find((teacher) => teacher.slug === values.get('teacher'));
-    const { data: { session } } = await supabase.auth.getSession();
-    const payload = { full_name: values.get('name'), phone: values.get('phone'), email: values.get('email') || null, license_goal: selects[0].value, has_learner_permit: selects[1].value === 'Có', preferred_area: values.get('area'), preferred_time: selects[3].value, requested_teacher_id: selectedTeacher?.id || null, wants_consultation: !selectedTeacher, source: 'website', student_profile_id: session?.user.id || null };
     const message = form.querySelector('.form-success');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const values = new FormData(form);
+    const teacherSlug = values.get('teacher');
+    const selectedTeacher = teacherSlug && teacherSlug !== 'consultation'
+      ? teachers.find((teacher) => teacher.slug === teacherSlug)
+      : null;
+    const { data: { session } } = await supabase.auth.getSession();
+    const payload = {
+      full_name: String(values.get('name') || '').trim(),
+      phone: String(values.get('phone') || '').trim(),
+      email: String(values.get('email') || '').trim() || null,
+      license_goal: String(values.get('licenseGoal') || '').trim(),
+      has_learner_permit: values.get('hasLearnerPermit') === 'true',
+      preferred_area: String(values.get('area') || '').trim(),
+      preferred_time: String(values.get('preferredTime') || '').trim() || null,
+      requested_teacher_id: selectedTeacher ? selectedTeacher.id : null,
+      wants_consultation: !selectedTeacher,
+      source: 'website',
+      student_profile_id: session?.user?.id || null,
+    };
+
     try {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Đang gửi…';
       const { error } = await supabase.from('student_requests').insert(payload);
       if (error) throw error;
-      form.reset(); message.textContent = 'Đã gửi yêu cầu. DriNet sẽ liên hệ với bạn trong thời gian sớm nhất.'; message.className = 'form-success show';
-    } catch (error) { message.textContent = error.message || 'Không thể gửi yêu cầu. Vui lòng thử lại.'; message.className = 'form-success show error'; }
+      form.reset();
+      message.textContent = 'Đã gửi yêu cầu thành công. DriNet sẽ liên hệ hỗ trợ bạn sớm nhất!';
+      message.className = 'form-success show';
+    } catch (error) {
+      message.textContent = error.message || 'Không thể gửi yêu cầu. Vui lòng thử lại.';
+      message.className = 'form-success show error';
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Gửi yêu cầu tư vấn →';
+    }
   });
+}
+
+function teacherApplicationPage() {
+  const currentUser = getCurrentUser();
+  return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">BẮT ĐẦU CÙNG DRINET</span><h1>Đăng ký tham gia DriNet</h1><p>Mở rộng cơ hội tiếp cận học viên bằng một hồ sơ chuyên nghiệp, minh bạch.</p></div></section><main class="container section"><form id="teacher-app-form" class="panel form-card"><h3>Đăng ký tham gia DriNet</h3><div class="notice">&#128274; Tài liệu xác minh chỉ dành cho quản trị viên kiểm tra và tuyệt đối không hiển thị công khai trên website.</div><div class="form-grid"><div><label>Họ tên hoặc tên trung tâm *</label><input name="displayName" required value="' + escapeHtml(currentUser?.name) + '"></div><div><label>Số điện thoại *</label><input name="phone" type="tel" required value="' + escapeHtml(currentUser?.phone) + '"></div><div><label>Email *</label><input name="email" type="email" required value="' + escapeHtml(currentUser?.email) + '"></div><div><label>Loại hình *</label><select name="centerType" required><option value="">Chọn loại hình</option><option value="independent">Giáo viên độc lập</option><option value="center">Trung tâm đào tạo</option></select></div><div><label>Hạng bằng giảng dạy *</label><input name="licenses" required placeholder="Ví dụ: Hạng B, C1"></div><div><label>Số năm kinh nghiệm *</label><input name="experienceYears" type="number" min="0" max="60" required placeholder="Ví dụ: 5"></div><div><label>Khu vực hoạt động *</label><input name="area" required placeholder="Ví dụ: TP. Pleiku"></div><div><label>Học phí tham khảo (đ/buổi) *</label><input name="price" required placeholder="Ví dụ: 350000"></div><div class="full"><label>Scan bằng cấp & giấy phép (PDF hoặc ảnh) *</label><input name="certificateFile" type="file" required accept=".pdf,image/*"></div><div class="full"><label>Giới thiệu ngắn gọn</label><textarea name="bio" rows="3" placeholder="Phương pháp giảng dạy, các khung giờ rảnh có thể nhận học viên…"></textarea></div><div class="full check"><input id="terms-teacher" type="checkbox" required><label for="terms-teacher">Tôi cam kết thông tin cung cấp là chính xác và đồng ý với <a href="#/dieu-khoan" style="color:var(--blue)">Điều khoản sử dụng</a> của DriNet. *</label></div><div class="full"><button class="btn btn-primary" type="submit">Gửi đăng ký tham gia &rarr;</button></div></div><div class="form-success"></div></form></main>';
 }
 
 export function formPage(kind) {
   if (kind === 'student') return studentRegistrationPage();
-  return `<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">BẮT ĐẦU CÙNG DRINET</span><h1>Đăng ký tham gia DriNet</h1><p>Mở rộng cơ hội tiếp cận học viên bằng một hồ sơ chuyên nghiệp, minh bạch.</p></div></section><main class="container section"><form class="panel form-card" onsubmit="submitForm(event,'Cảm ơn bạn đã đăng ký tham gia! DriNet sẽ liên hệ để xác minh hồ sơ trong thời gian sớm nhất.')"><h3>Đăng ký tham gia DriNet</h3><div class="notice">&#128274; Tài liệu xác minh chỉ dành cho quản trị viên kiểm tra và tuyệt đối không hiển thị công khai trên website.</div><div class="form-grid"><div><label>Họ tên hoặc tên trung tâm *</label><input required></div><div><label>Số điện thoại *</label><input type="tel" required></div><div><label>Email</label><input type="email"></div><div><label>Loại hình *</label><select required><option value="">Chọn loại hình</option><option>Giáo viên độc lập</option><option>Trung tâm</option></select></div><div><label>Hạng bằng giảng dạy *</label><input required placeholder="Ví dụ: B, C1"></div><div><label>Số năm kinh nghiệm *</label><input type="number" required></div><div><label>Khu vực hoạt động *</label><input required placeholder="Ví dụ: TP. Pleiku"></div><div><label>Số giấy phép/chứng nhận *</label><input required></div><div><label>Scan bằng cấp & giấy phép *</label><input type="file" required accept=".pdf,image/*"></div><div><label>Học phí tham khảo *</label><input required placeholder="Ví dụ: 350.000đ/buổi"></div><div class="full"><label>Lịch trống (tùy chọn)</label><textarea rows="3" placeholder="Mô tả các khung giờ có thể nhận học viên"></textarea></div><div class="full check"><input id="terms" type="checkbox" required><label for="terms">Tôi đã đọc và đồng ý với <a href="#/dieu-khoan" style="color:var(--blue)">Điều khoản sử dụng và Chính sách bảo mật</a> của DriNet. *</label></div><div class="full"><button class="btn btn-primary" type="submit">Gửi đăng ký &rarr;</button></div></div><div class="form-success"></div></form></main>`;
+  return teacherApplicationPage();
 }
 
-function slugify(value) { return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
-
 export function bindTeacherApplication() {
-  const form = document.querySelector('.form-card');
+  const form = document.querySelector('#teacher-app-form');
   if (!form) return;
+
   form.addEventListener('submit', async (event) => {
-    event.preventDefault(); event.stopImmediatePropagation();
+    event.preventDefault();
     const message = form.querySelector('.form-success');
-    const inputs = form.querySelectorAll('input');
-    const selects = form.querySelectorAll('select');
-    const textareas = form.querySelectorAll('textarea');
+    const submitBtn = form.querySelector('button[type="submit"]');
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { location.hash = '#/dang-nhap'; return; }
-    const name = inputs[0].value.trim();
-    const licenses = inputs[3].value.split(',').map((item) => item.trim()).filter(Boolean).map((item) => item === 'B' ? 'Hạng B' : item);
-    const rawPrice = inputs[8].value.replace(/[^0-9]/g, '');
-    const payload = { profile_id: session.user.id, slug: `${slugify(name) || 'giao-vien'}-${session.user.id.slice(0, 8)}`, display_name: name, area: inputs[5].value.trim(), licenses, experience_years: Number(inputs[4].value) || 0, price_per_lesson: rawPrice ? Number(rawPrice) : null, center_name: selects[0].value === 'Trung tâm' ? name : null, bio: textareas[0].value.trim() || null, status: 'pending' };
+    if (!session) {
+      alert('Vui lòng đăng nhập tài khoản trước khi gửi hồ sơ giáo viên.');
+      location.hash = '#/dang-nhap';
+      return;
+    }
+
+    const values = new FormData(form);
+    const name = String(values.get('displayName') || '').trim();
+    const licenses = String(values.get('licenses') || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => item === 'B' ? 'Hạng B' : item);
+    const rawPrice = String(values.get('price') || '').replace(/[^0-9]/g, '');
+    const centerType = values.get('centerType');
+    const payload = {
+      profile_id: session.user.id,
+      slug: (slugify(name) || 'giao-vien') + '-' + session.user.id.slice(0, 8),
+      display_name: name,
+      area: String(values.get('area') || '').trim(),
+      licenses,
+      experience_years: Number(values.get('experienceYears')) || 0,
+      price_per_lesson: rawPrice ? Number(rawPrice) : null,
+      center_name: centerType === 'center' ? name : null,
+      bio: String(values.get('bio') || '').trim() || null,
+      status: 'pending',
+    };
+
     try {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Đang gửi hồ sơ…';
       const { data: existing, error: existingError } = await supabase.from('teachers').select('id, status').eq('profile_id', session.user.id).maybeSingle();
       if (existingError) throw existingError;
+
       let teacher;
       if (existing) {
         if (!['pending', 'needs_revision'].includes(existing.status)) throw new Error('Tài khoản này đã có hồ sơ đang được duyệt hoặc đã được phê duyệt.');
@@ -116,20 +208,120 @@ export function bindTeacherApplication() {
         if (error) throw error;
         teacher = data;
       }
-      const file = inputs[7].files[0];
+
+      const fileInput = form.querySelector('input[type="file"]');
+      const file = fileInput?.files?.[0];
       if (file) {
-        const path = `${session.user.id}/${teacher.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`;
+        const path = session.user.id + '/' + teacher.id + '/' + Date.now() + '-' + file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
         const { error: uploadError } = await supabase.storage.from('teacher-documents').upload(path, file, { contentType: file.type });
         if (uploadError) throw uploadError;
         const { error: documentError } = await supabase.from('teacher_documents').insert({ teacher_id: teacher.id, document_type: 'teaching_certificate', storage_path: path, original_filename: file.name, mime_type: file.type, file_size: file.size });
         if (documentError) throw documentError;
       }
-      message.textContent = 'Đã gửi hồ sơ. DriNet sẽ xét duyệt và phản hồi cho bạn.'; message.className = 'form-success show'; form.reset();
-    } catch (error) { message.textContent = error.message || 'Không thể gửi hồ sơ. Vui lòng thử lại.'; message.className = 'form-success show error'; }
-  }, true);
-}
-export function reviewPage(){return `<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">CHIA SẺ TRẢI NGHIỆM</span><h1>Gửi đánh giá của bạn</h1><p>Ý kiến trung thực của bạn giúp cộng đồng học viên đưa ra lựa chọn tốt hơn.</p></div></section><main class="container section"><form class="panel form-card" onsubmit="submitForm(event,'Cảm ơn bạn đã gửi đánh giá! DriNet sẽ đối chiếu thông tin trước khi công khai.')"><div class="notice">&#8505; Đánh giá chỉ được công khai sau khi DriNet đối chiếu với giao dịch đã được xác nhận.</div><div class="form-grid"><div><label>Mã giao dịch hoặc số điện thoại đã đăng ký *</label><input required></div><div><label>Tên giáo viên *</label><input required></div><div><label>Đánh giá *</label><select required><option value="">Chọn số sao</option><option>&#9733;&#9733;&#9733;&#9733;&#9733; · 5 sao</option><option>&#9733;&#9733;&#9733;&#9733; · 4 sao</option><option>&#9733;&#9733;&#9733; · 3 sao</option><option>&#9733;&#9733; · 2 sao</option><option>&#9733; · 1 sao</option></select></div><div class="full"><label>Nhận xét ngắn (tối đa 500 ký tự) *</label><textarea required maxlength="500" rows="5" placeholder="Chia sẻ trải nghiệm học của bạn một cách tôn trọng và trung thực."></textarea></div><div class="full check"><input id="public-review" type="checkbox" required><label for="public-review">Tôi đồng ý để DriNet hiển thị đánh giá sau khi kiểm duyệt. *</label></div><div class="full"><button class="btn btn-primary">Gửi đánh giá &rarr;</button></div></div><div class="form-success"></div></form></main>`}
-export function about(){return `<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">CÂU CHUYỆN DRINET</span><h1>Kết nối minh bạch cho hành trình vững tay lái</h1></div></section><main class="container section prose"><h2>Vì sao DriNet ra đời?</h2><p>Nhiều người có nhu cầu học lái xe nhưng gặp khó khăn trong việc tìm kiếm giáo viên uy tín, minh bạch về học phí và có phong cách giảng dạy phù hợp. Trong khi đó, những giáo viên chuyên môn tốt lại có thể hạn chế cơ hội quảng bá bản thân một cách công bằng.</p><p>DriNet được xây dựng để giải quyết khoảng cách này, tạo ra nền tảng kết nối trực tiếp giữa học viên với giáo viên và trung tâm đào tạo. Mọi lựa chọn bắt đầu từ thông tin rõ ràng và nhu cầu thực tế của người học.</p><h2>Giá trị chúng tôi theo đuổi</h2><div class="values">${[['&#9672;','Minh bạch'],['&#10003;','Uy tín'],['&#9719;','Linh hoạt'],['&#9022;','An toàn'],['&harr;','Kết nối công bằng']].map(x=>`<div class="value"><div class="icon">${x[0]}</div><b>${x[1]}</b></div>`).join('')}</div><h2>Tầm nhìn</h2><p>Trở thành nền tảng kết nối học viên và giáo viên dạy lái đáng tin cậy, góp phần nâng cao chất lượng đào tạo và xây dựng văn hóa lái xe an toàn.</p></main>`}
-export function contact(){return `<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">LUÔN SẴN SÀNG HỖ TRỢ</span><h1>Liên hệ với DriNet</h1><p>Đội ngũ DriNet sẵn sàng lắng nghe và hỗ trợ bạn.</p></div></section><main class="container section"><div class="contact-grid"><div class="panel"><h3>Thông tin liên hệ</h3><div class="contact-item"><b>Zalo hỗ trợ</b><span>08 66 78 88 99</span></div><div class="contact-item"><b>Email</b><span>hello@drinet.vn</span></div><div class="contact-item"><b>Khu vực hoạt động</b><span>Gia Lai, Việt Nam</span></div><a class="btn btn-primary" style="margin-top:20px" href="https://zalo.me" target="_blank" rel="noopener">Nhắn Zalo ngay</a></div><form class="panel" onsubmit="submitForm(event,'Cảm ơn bạn đã liên hệ! DriNet sẽ phản hồi trong thời gian sớm nhất.')"><h3>Gửi tin nhắn nhanh</h3><div class="form-grid"><div><label>Họ và tên *</label><input required></div><div><label>Số điện thoại hoặc email *</label><input required></div><div class="full"><label>Nội dung cần hỗ trợ *</label><textarea required rows="5" placeholder="DriNet có thể hỗ trợ gì cho bạn?"></textarea></div><div class="full"><button class="btn btn-primary">Gửi liên hệ &rarr;</button></div></div><div class="form-success"></div></form></div></main>`}
-export function terms(){return `<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">THÔNG TIN PHÁP LÝ</span><h1>Điều khoản & bảo mật</h1><p>Cập nhật lần cuối: tháng 11 năm 2026</p></div></section><main class="container section prose"><h2>Điều khoản sử dụng</h2><ul><li>DriNet là nền tảng kết nối, không trực tiếp thực hiện hoạt động đào tạo lái xe.</li><li>Học phí, lịch học và thỏa thuận đào tạo do giáo viên hoặc trung tâm quyết định.</li><li>Người dùng có trách nhiệm cung cấp thông tin chính xác, đầy đủ khi sử dụng nền tảng.</li><li>Đánh giá phải trung thực, tôn trọng và tuân thủ quy định của DriNet.</li></ul><h2>Chính sách bảo mật</h2><p>DriNet thu thập thông tin liên hệ, nhu cầu học và thông tin hồ sơ cần thiết để kết nối, xác minh và hỗ trợ người dùng. Dữ liệu được sử dụng đúng mục đích, bảo vệ bằng biện pháp phù hợp và lưu giữ trong thời gian cần thiết cho dịch vụ hoặc theo quy định pháp luật.</p><p>Bạn có quyền yêu cầu xem, chỉnh sửa hoặc xóa thông tin cá nhân của mình bằng cách liên hệ DriNet. Tài liệu xác minh của giáo viên/trung tâm chỉ phục vụ quản trị viên kiểm tra, tuyệt đối không hiển thị công khai.</p><h2>Quy định giao dịch</h2><p>DriNet khuyến khích người dùng thực hiện giao dịch thông qua quy trình của nền tảng để nhận được hỗ trợ khi phát sinh khiếu nại. Người dùng nên xác nhận rõ học phí, lịch học và nội dung dịch vụ trước khi bắt đầu.</p></main>`}
 
+      message.textContent = 'Đã gửi hồ sơ thành công. Ban quản trị DriNet sẽ xét duyệt và phản hồi cho bạn.';
+      message.className = 'form-success show';
+      form.reset();
+    } catch (error) {
+      message.textContent = error.message || 'Không thể gửi hồ sơ. Vui lòng thử lại.';
+      message.className = 'form-success show error';
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Gửi đăng ký tham gia →';
+    }
+  });
+}
+
+export function reviewPage() {
+  const currentUser = getCurrentUser();
+  const queryTeacher = new URLSearchParams(location.hash.split('?')[1] || '').get('teacher') || '';
+  const teachers = getTeachers();
+  const selectedTeacher = teachers.find((t) => t.slug === queryTeacher || t.name === queryTeacher);
+
+  return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">CHIA SẺ TRẢI NGHIỆM</span><h1>Gửi đánh giá của bạn</h1><p>Ý kiến trung thực của bạn giúp cộng đồng học viên đưa ra lựa chọn tốt hơn.</p></div></section><main class="container section"><form id="review-form" class="panel form-card"><div class="notice">&#8505; Đánh giá sẽ được quản trị viên kiểm duyệt đối chiếu trước khi công khai trên hồ sơ giáo viên.</div><div class="form-grid"><div><label>Họ và tên của bạn *</label><input name="studentName" required autocomplete="name" value="' + escapeHtml(currentUser?.name) + '"></div><div><label>Mã giao dịch hoặc số điện thoại đã học *</label><input name="phoneOrCode" required value="' + escapeHtml(currentUser?.phone) + '"></div><div><label>Giáo viên muốn đánh giá *</label><select name="teacherId" required><option value="">Chọn giáo viên</option>' + teachers.map((t) => '<option value="' + escapeHtml(t.id) + '"' + (selectedTeacher?.id === t.id ? ' selected' : '') + '>' + escapeHtml(t.name) + ' · ' + escapeHtml(t.area) + '</option>').join('') + '</select></div><div><label>Mức độ hài lòng *</label><select name="rating" required><option value="5">&#9733;&#9733;&#9733;&#9733;&#9733; - Rất hài lòng</option><option value="4">&#9733;&#9733;&#9733;&#9733;&#9734; - Hài lòng</option><option value="3">&#9733;&#9733;&#9733;&#9734;&#9734; - Bình thường</option><option value="2">&#9733;&#9733;&#9734;&#9734;&#9734; - Chưa hài lòng</option><option value="1">&#9733;&#9734;&#9734;&#9734;&#9734; - Rất không hài lòng</option></select></div><div class="full"><label>Nhận xét chi tiết về quá trình học *</label><textarea name="comment" required rows="4" placeholder="Chia sẻ cảm nhận về thái độ, phương pháp hướng dẫn, sự kiên nhẫn của giáo viên…"></textarea></div><div class="full"><button class="btn btn-primary" type="submit">Gửi đánh giá &rarr;</button></div></div><div class="form-success"></div></form></main>';
+}
+
+export function bindReviewPage() {
+  const form = document.querySelector('#review-form');
+  if (!form) return;
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const message = form.querySelector('.form-success');
+    const values = new FormData(form);
+    const teacherId = values.get('teacherId');
+    const teachers = getTeachers();
+    const teacher = teachers.find((t) => t.id === teacherId);
+    const payload = {
+      teacher_id: teacherId || null,
+      teacher_name: teacher ? teacher.name : '',
+      student_name: String(values.get('studentName') || '').trim(),
+      phone_or_code: String(values.get('phoneOrCode') || '').trim(),
+      rating: Number(values.get('rating')) || 5,
+      comment: String(values.get('comment') || '').trim(),
+      status: 'pending',
+    };
+
+    try {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Đang gửi…';
+      const { error } = await supabase.from('reviews').insert(payload);
+      if (error) throw error;
+      form.reset();
+      message.textContent = 'Cảm ơn bạn đã gửi đánh giá! Ban quản trị DriNet sẽ kiểm duyệt trước khi công khai trên hồ sơ giáo viên.';
+      message.className = 'form-success show';
+    } catch (error) {
+      message.textContent = error.message || 'Không thể gửi đánh giá. Vui lòng thử lại.';
+      message.className = 'form-success show error';
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Gửi đánh giá →';
+    }
+  });
+}
+
+export function contact() {
+  const currentUser = getCurrentUser();
+  return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">LUÔN SẴN SÀNG HỖ TRỢ</span><h1>Liên hệ với DriNet</h1><p>Đội ngũ DriNet sẵn sàng lắng nghe và hỗ trợ bạn.</p></div></section><main class="container section"><div class="contact-grid"><div class="panel"><h3>Thông tin liên hệ</h3><div class="contact-item"><b>Zalo hỗ trợ</b><span>08 66 78 88 99</span></div><div class="contact-item"><b>Email</b><span>hello@drinet.vn</span></div><div class="contact-item"><b>Khu vực hoạt động</b><span>Gia Lai, Việt Nam</span></div><a class="btn btn-primary" style="margin-top:20px" href="https://zalo.me" target="_blank" rel="noopener">Nhắn Zalo ngay</a></div><form id="contact-form" class="panel"><h3>Gửi tin nhắn nhanh</h3><div class="form-grid"><div><label>Họ và tên *</label><input name="fullName" required autocomplete="name" value="' + escapeHtml(currentUser?.name) + '"></div><div><label>Số điện thoại hoặc email *</label><input name="contactInfo" required value="' + escapeHtml(currentUser?.phone || currentUser?.email) + '"></div><div class="full"><label>Nội dung cần hỗ trợ *</label><textarea name="content" required rows="5" placeholder="DriNet có thể hỗ trợ gì cho bạn?"></textarea></div><div class="full"><button class="btn btn-primary" type="submit">Gửi liên hệ &rarr;</button></div></div><div class="form-success"></div></form></div></main>';
+}
+
+export function bindContactPage() {
+  const form = document.querySelector('#contact-form');
+  if (!form) return;
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const message = form.querySelector('.form-success');
+    const values = new FormData(form);
+    const payload = {
+      full_name: String(values.get('fullName') || '').trim(),
+      contact_info: String(values.get('contactInfo') || '').trim(),
+      content: String(values.get('content') || '').trim(),
+      status: 'new',
+    };
+
+    try {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Đang gửi…';
+      const { error } = await supabase.from('contact_messages').insert(payload);
+      if (error) throw error;
+      form.reset();
+      message.textContent = 'Cảm ơn bạn đã liên hệ! Đội ngũ DriNet sẽ phản hồi bạn trong thời gian sớm nhất.';
+      message.className = 'form-success show';
+    } catch (error) {
+      message.textContent = error.message || 'Không thể gửi liên hệ. Vui lòng thử lại.';
+      message.className = 'form-success show error';
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Gửi liên hệ →';
+    }
+  });
+}
+
+export function about() {
+  return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">CÂU CHUYỆN DRINET</span><h1>Kết nối minh bạch cho hành trình vững tay lái</h1></div></section><main class="container section prose"><h2>Vì sao DriNet ra đời?</h2><p>Nhiều người có nhu cầu học lái xe nhưng gặp khó khăn trong việc tìm kiếm giáo viên uy tín, minh bạch về học phí và có phong cách giảng dạy phù hợp. Trong khi đó, những giáo viên chuyên môn tốt lại có thể hạn chế cơ hội quảng bá bản thân một cách công bằng.</p><p>DriNet được xây dựng để giải quyết khoảng cách này, tạo ra nền tảng kết nối trực tiếp giữa học viên với giáo viên và trung tâm đào tạo. Mọi lựa chọn bắt đầu từ thông tin rõ ràng và nhu cầu thực tế của người học.</p><h2>Giá trị chúng tôi theo đuổi</h2><div class="values">' + [['&#9672;', 'Minh bạch'], ['&#10003;', 'Uy tín'], ['&#9719;', 'Linh hoạt'], ['&#9022;', 'An toàn'], ['&harr;', 'Kết nối công bằng']].map((x) => '<div class="value"><div class="icon">' + x[0] + '</div><b>' + x[1] + '</b></div>').join('') + '</div><h2>Tầm nhìn</h2><p>Trở thành nền tảng kết nối học viên và giáo viên dạy lái đáng tin cậy, góp phần nâng cao chất lượng đào tạo và xây dựng văn hóa lái xe an toàn.</p></main>';
+}
+
+export function terms() {
+  return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">THÔNG TIN PHÁP LÝ</span><h1>Điều khoản & bảo mật</h1><p>Cập nhật lần cuối: tháng 11 năm 2026</p></div></section><main class="container section prose"><h2>Điều khoản sử dụng</h2><ul><li>DriNet là nền tảng kết nối, không trực tiếp thực hiện hoạt động đào tạo lái xe.</li><li>Học phí, lịch học và thỏa thuận đào tạo do giáo viên hoặc trung tâm quyết định.</li><li>Người dùng có trách nhiệm cung cấp thông tin chính xác, đầy đủ khi sử dụng nền tảng.</li><li>Đánh giá phải trung thực, tôn trọng và tuân thủ quy định của DriNet.</li></ul><h2>Chính sách bảo mật</h2><p>DriNet thu thập thông tin liên hệ, nhu cầu học và thông tin hồ sơ cần thiết để kết nối, xác minh và hỗ trợ người dùng. Dữ liệu được sử dụng đúng mục đích, bảo vệ bằng biện pháp phù hợp và lưu giữ trong thời gian cần thiết cho dịch vụ hoặc theo quy định pháp luật.</p><p>Bạn có quyền yêu cầu xem, chỉnh sửa hoặc xóa thông tin cá nhân của mình bằng cách liên hệ DriNet. Tài liệu xác minh của giáo viên/trung tâm chỉ phục vụ quản trị viên kiểm tra, tuyệt đối không hiển thị công khai.</p><h2>Quy định giao dịch</h2><p>DriNet khuyến khích người dùng thực hiện giao dịch thông qua quy trình của nền tảng để nhận được hỗ trợ khi phát sinh khiếu nại. Người dùng nên xác nhận rõ học phí, lịch học và nội dung dịch vụ trước khi bắt đầu.</p></main>';
+}
