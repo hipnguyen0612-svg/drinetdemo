@@ -1,7 +1,7 @@
 import { getTeachers, loadTeachers } from './data.js';
 import { adminPage, bindAdminPage } from './admin.js';
 import { accountPage, bindAccountPage, bindLoginPage, getCurrentUser, initialiseAuth, isAdmin, loginPage } from './auth.js';
-import { nav, footer } from './components.js';
+import { nav, footer, bindNavigationEvents } from './components.js';
 import { home, teacherList, profile, formPage, reviewPage, about, contact, terms, bindStudentRegistration, bindTeacherApplication, bindTeacherFilters, bindReviewPage, bindContactPage, bindTeacherProfile } from './pages.js';
 import { submitForm } from './utils.js';
 
@@ -46,6 +46,7 @@ async function render() {
   const page = getPage(path);
 
   app.innerHTML = nav() + page() + footer();
+  bindNavigationEvents();
   if (path === '/giao-vien') bindTeacherFilters();
   if (path === '/dang-ky-hoc') bindStudentRegistration();
   if (path === '/dang-ky-giao-vien') bindTeacherApplication();

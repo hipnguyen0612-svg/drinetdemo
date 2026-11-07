@@ -6,6 +6,7 @@
 
 @media(max-width:800px){.links.open .mobile-teacher-join{display:block;color:var(--blue);font-weight:700}}
 @media(max-width:800px){.links.open .mobile-account-link{display:block;color:var(--navy);font-weight:700}}
+@media(max-width:800px){.links.open .mobile-teacher-support{display:block;color:#e65100;font-weight:700}}
 @media(max-width:800px){.account-grid{grid-template-columns:1fr}.account-summary{align-items:flex-start}}
 
 @media(max-width:800px){.admin-item-card{flex-direction:column;gap:12px}.admin-btn-group{width:100%}}

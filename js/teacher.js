@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { getCurrentUser, signOutFromSupabase, initialiseAuth } from './auth.js';
+import { openTeacherSupportModal } from './components.js';
 import { escapeHtml } from './utils.js';
 
 const renderSpinner = (text = 'Đang tải dữ liệu, vui lòng chờ…') =>
@@ -605,11 +606,21 @@ function renderSecurityTab(user) {
         </button>
       </div>
     </div>
+
+    <div style="margin-top:24px;background:#f0f7ff;border:1px solid #bfdbfe;border-radius:12px;padding:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div>
+        <h4 style="margin:0 0 4px;color:var(--navy);font-size:15px">🛠️ Gặp sự cố cần Ban Quản trị hỗ trợ?</h4>
+        <p style="margin:0;font-size:13px;color:var(--muted)">Báo cáo lỗi hiển thị, sự cố học viên hoặc yêu cầu kỹ thuật trực tiếp đến Admin.</p>
+      </div>
+      <button class="btn btn-primary btn-sm" id="btn-security-support" type="button">Báo cáo sự cố cho Admin &rarr;</button>
+    </div>
   `;
 }
 
 function bindSecurityTab(user) {
   const phoneForm = document.querySelector('#teacher-phone-form');
+  document.querySelector('#btn-security-support')?.addEventListener('click', () => openTeacherSupportModal());
+
   phoneForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const phone = String(new FormData(phoneForm).get('phone') || '').trim();
