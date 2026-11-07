@@ -23,11 +23,12 @@ const routes = {
   '/dang-nhap': loginPage,
   '/dang-ky': loginPage,
   '/ho-so': accountPage,
+  '/giao-vien-dashboard': accountPage,
   '/admin': adminPage,
 };
 
 function getPage(path) {
-  if ((path === '/admin' && !isAdmin()) || (path === '/ho-so' && !getCurrentUser())) return loginPage;
+  if ((path === '/admin' && !isAdmin()) || ((path === '/ho-so' || path === '/giao-vien-dashboard') && !getCurrentUser())) return loginPage;
   if (path.startsWith('/giao-vien/')) {
     const slug = decodeURIComponent(path.split('/').pop());
     return () => {
@@ -56,8 +57,8 @@ async function render() {
     if (teacher) bindTeacherProfile(teacher);
   }
   if (path === '/admin' && isAdmin()) bindAdminPage();
-  if (path === '/dang-nhap' || path === '/dang-ky' || (path === '/admin' && !isAdmin()) || (path === '/ho-so' && !getCurrentUser())) bindLoginPage();
-  if (path === '/ho-so' && getCurrentUser()) bindAccountPage();
+  if (path === '/dang-nhap' || path === '/dang-ky' || (path === '/admin' && !isAdmin()) || ((path === '/ho-so' || path === '/giao-vien-dashboard') && !getCurrentUser())) bindLoginPage();
+  if ((path === '/ho-so' || path === '/giao-vien-dashboard') && getCurrentUser()) bindAccountPage();
   window.scrollTo({ top: 0, behavior: 'instant' });
   document.title = path === '/' ? 'DriNet — Kết nối đúng người dạy' : `DriNet | ${path.split('/').pop()}`;
 }

@@ -46,3 +46,27 @@
 .drinet-spinner{width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:var(--blue);border-radius:50%;animation:drinet-spin .8s cubic-bezier(.4,0,.2,1) infinite}
 @keyframes drinet-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
 .drinet-loading-text{margin-top:14px;font-size:14px;font-weight:600;color:var(--muted)}
+
+/* Teacher Dashboard Styles */
+.teacher-dashboard{max-width:1120px;margin:auto}
+.teacher-header-card{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:24px;margin-bottom:24px;flex-wrap:wrap}
+.teacher-header-profile{display:flex;align-items:center;gap:18px}
+.teacher-avatar{width:68px;height:68px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#1268e8,#10badc);color:#fff;font-size:28px;font-weight:800;flex-shrink:0}
+.teacher-header-info h2{margin:0 0 4px;font-size:22px;color:var(--navy);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.teacher-header-info p{margin:0 0 8px;color:var(--muted);font-size:14px}
+.teacher-status-banner{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-radius:10px;margin-bottom:24px;gap:14px;flex-wrap:wrap}
+.teacher-status-banner.approved{background:#e7f8ef;border:1px solid #bbf7d0;color:#0d7a4d}
+.teacher-status-banner.pending{background:#edf6ff;border:1px solid #bfdbfe;color:#1e40af}
+.teacher-status-banner.needs_revision{background:#fff4e6;border:1px solid #fed7aa;color:#9a3412}
+.teacher-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.teacher-stat-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:4px}
+.teacher-stat-label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.teacher-stat-value{font-size:22px;font-weight:800;color:var(--navy)}
+.teacher-stat-sub{font-size:12px;color:var(--muted)}
+.btn-call{background:#e7f8ef!important;color:#12a66a!important;border-color:#bbf7d0!important}
+.btn-call:hover{background:#d1fae5!important}
+.btn-zalo{background:#e0f2fe!important;color:#0284c7!important;border-color:#bae6fd!important}
+.btn-zalo:hover{background:#bae6fd!important}
+.student-history-card{padding:16px;border:1px solid var(--line);border-radius:10px;margin-bottom:12px;background:#f8fafc}
+.student-history-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px}
+.student-history-meta{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted)}
