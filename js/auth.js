@@ -14,32 +14,71 @@ export async function initialiseAuth() {
   return hydrateUser(session);
 }
 
-async function hydrateUser(session) {
-  const { data: profile } = await supabase.from('profiles').select('full_name, phone, role').eq('id', session.user.id).maybeSingle();
-  const role = profile?.role || 'student';
-  const user = { id: session.user.id, name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email, email: session.user.email, phone: profile?.phone || '', role, roleLabel: role === 'admin' ? 'Quản trị viên' : role === 'teacher' ? 'Giáo viên' : 'Học viên' };
+function getRoleLabel(role) {
+  if (role === 'admin') return 'Quản trị viên';
+  if (role === 'teacher') return 'Giáo viên';
+  return 'Học viên';
+}
+
+function saveSessionUser(session) {
+  const role = session.user.app_metadata?.role || session.user.user_metadata?.role || 'student';
+  const user = {
+    id: session.user.id,
+    name: session.user.user_metadata?.full_name || session.user.email,
+    email: session.user.email,
+    phone: '',
+    role,
+    roleLabel: getRoleLabel(role),
+  };
   localStorage.setItem(SESSION_KEY, JSON.stringify(user));
   return user;
 }
 
-function saveSessionUser(session) {
-  const user = { id: session.user.id, name: session.user.user_metadata?.full_name || session.user.email, email: session.user.email, phone: '', role: 'student', roleLabel: 'Học viên' };
-  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-  return user;
+async function hydrateUser(session) {
+  const fallbackRole = session.user.app_metadata?.role || session.user.user_metadata?.role || 'student';
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, phone, role')
+      .eq('id', session.user.id)
+      .maybeSingle();
+
+    const role = profile?.role || fallbackRole;
+    const user = {
+      id: session.user.id,
+      name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email,
+      email: session.user.email,
+      phone: profile?.phone || '',
+      role,
+      roleLabel: getRoleLabel(role),
+    };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    return user;
+  } catch (err) {
+    console.warn('Lỗi khi tải profile chi tiết:', err);
+    return saveSessionUser(session);
+  }
 }
 
 export async function signInWithSupabase(email, password) {
   const { data, error } = await supabase.auth.signInWithPassword({ email: String(email).trim(), password });
   if (error) throw error;
-  const user = saveSessionUser(data.session);
-  hydrateUser(data.session).catch(() => {});
+  saveSessionUser(data.session);
+  const user = await hydrateUser(data.session);
   return user;
 }
 
 export async function signUpWithSupabase({ fullName, email, password }) {
-  const { data, error } = await supabase.auth.signUp({ email: String(email).trim(), password, options: { data: { full_name: String(fullName).trim() } } });
+  const { data, error } = await supabase.auth.signUp({
+    email: String(email).trim(),
+    password,
+    options: { data: { full_name: String(fullName).trim(), role: 'student' } }
+  });
   if (error) throw error;
-  if (data.session) { saveSessionUser(data.session); hydrateUser(data.session).catch(() => {}); }
+  if (data.session) {
+    saveSessionUser(data.session);
+    await hydrateUser(data.session);
+  }
   return data;
 }
 
@@ -136,8 +175,8 @@ export function bindLoginPage() {
     try {
       button.disabled = true;
       button.textContent = 'Đang đăng nhập…';
-      await signInWithSupabase(form.get('email'), form.get('password'));
-      location.hash = '#/ho-so';
+      const user = await signInWithSupabase(form.get('email'), form.get('password'));
+      location.hash = user?.role === 'admin' ? '#/admin' : '#/ho-so';
     } catch (error) {
       showError(error);
     } finally {
