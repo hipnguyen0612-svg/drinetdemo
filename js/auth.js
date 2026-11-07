@@ -240,7 +240,7 @@ export function bindStudentAccountPage(user) {
       if (error) throw error;
       const updated = await initialiseAuth();
       const btnSpan = document.querySelector('.account-button span');
-      if (btnSpan) btnSpan.textContent = 'Hồ sơ · ' + updated.name;
+      if (btnSpan) btnSpan.textContent = updated.name;
       const summaryH2 = document.querySelector('.account-summary h2');
       if (summaryH2) summaryH2.textContent = updated.name;
       const summaryAvatar = document.querySelector('.account-avatar');

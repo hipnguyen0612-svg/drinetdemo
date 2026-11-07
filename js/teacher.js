@@ -479,6 +479,8 @@ function renderProfileTab() {
       if (user && user.id) {
         await supabase.from('profiles').update({ full_name: displayName }).eq('id', user.id);
         await initialiseAuth();
+        const btnSpan = document.querySelector('.account-button span');
+        if (btnSpan) btnSpan.textContent = displayName;
       }
 
       renderHeader(activeTeacher, getCurrentUser());

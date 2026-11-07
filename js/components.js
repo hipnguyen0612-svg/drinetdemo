@@ -5,12 +5,9 @@ export function nav() {
   const user = getCurrentUser();
   const isTeacher = user?.role === 'teacher';
   const isAdmin = user?.role === 'admin';
-  let rolePrefix = 'Hồ sơ';
-  if (isTeacher) rolePrefix = 'Giáo viên';
-  else if (isAdmin) rolePrefix = 'Quản trị';
 
   const accountAction = user
-    ? `<a class="btn btn-light account-button" href="#/ho-so" aria-label="Mở hồ sơ tài khoản"><span>${rolePrefix} · ${escapeHtml(user.name)}</span><small>${escapeHtml(user.roleLabel)}</small></a>`
+    ? `<a class="btn btn-light account-button" href="#/ho-so" aria-label="Mở hồ sơ tài khoản" title="${escapeHtml(user.name)}"><span>${escapeHtml(user.name)}</span><small>${escapeHtml(user.roleLabel)}</small></a>`
     : '<a class="btn btn-light" href="#/dang-nhap">Đăng nhập</a>';
 
   const accountLink = user

@@ -2,7 +2,7 @@
 
 @media(max-width:800px){.admin-layout{grid-template-columns:1fr}.admin-list-heading{align-items:flex-start;flex-direction:column}.admin-teacher-row{align-items:flex-start}.license-options{flex-wrap:wrap}.admin-row-actions{flex-direction:column;align-items:stretch}.admin-form-actions{flex-wrap:wrap}}
 
-@media(max-width:800px){.nav-actions .account-button{display:inline-flex;max-width:110px}.account-button span{max-width:86px}.login-card{padding:20px}}
+@media(max-width:800px){.nav-actions .account-button{display:inline-flex;max-width:130px}.account-button span{max-width:105px}.login-card{padding:20px}}
 
 @media(max-width:800px){.links.open .mobile-teacher-join{display:block;color:var(--blue);font-weight:700}}
 @media(max-width:800px){.links.open .mobile-account-link{display:block;color:var(--navy);font-weight:700}}
