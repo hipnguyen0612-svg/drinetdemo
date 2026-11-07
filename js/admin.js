@@ -28,16 +28,69 @@ const reviewStatusLabel = {
 const contactStatusLabel = {
   new: 'Tin nhắn mới',
   read: 'Đã xem',
-  resolved: 'Đã xử lý',
+  resolved: 'Đã xử lý / Đã trả lời',
+};
+
+const teacherSupportStatusLabel = {
+  new: 'Chờ hỗ trợ',
+  read: 'Đang xử lý',
+  resolved: 'Đã giải quyết',
 };
 
 const renderSpinner = (text = 'Vui lòng chờ trong giây lát…') =>
   '<div class="drinet-loading-state"><div class="drinet-spinner"></div><p class="drinet-loading-text">' + escapeHtml(text) + '</p></div>';
 
 let currentTab = 'teachers';
+let currentRequestsFilter = 'all'; // 'all' | 'leads' | 'messages'
+
+export function isTeacherSupportMessage(msg) {
+  if (!msg) return false;
+  const content = String(msg.content || '');
+  const name = String(msg.full_name || '');
+  return content.includes('[BÁO CÁO SỰ CỐ') || name.includes('[Giáo viên]') || content.includes('BÁO CÁO SỰ CỐ - GIÁO VIÊN');
+}
+
+function parseTeacherReport(msg) {
+  const content = String(msg.content || '');
+  const lines = content.split('\n');
+  let issueType = '';
+  let priority = '';
+  let teacherInfo = '';
+  let phone = '';
+  let details = '';
+
+  const detailsIndex = content.indexOf('Nội dung chi tiết:');
+  if (detailsIndex !== -1) {
+    details = content.slice(detailsIndex + 'Nội dung chi tiết:'.length).trim();
+  } else {
+    details = content.replace(/\[BÁO CÁO SỰ CỐ - GIÁO VIÊN\]\s*/i, '').trim();
+  }
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('Loại sự cố:')) issueType = trimmed.replace('Loại sự cố:', '').trim();
+    else if (trimmed.startsWith('Loại:')) issueType = trimmed.replace('Loại:', '').trim();
+    else if (trimmed.startsWith('Mức độ:')) priority = trimmed.replace('Mức độ:', '').trim();
+    else if (trimmed.startsWith('Giáo viên:')) teacherInfo = trimmed.replace('Giáo viên:', '').trim();
+    else if (trimmed.startsWith('SĐT/Zalo liên hệ:')) phone = trimmed.replace('SĐT/Zalo liên hệ:', '').trim();
+  });
+
+  if (!phone) {
+    const phoneMatch = String(msg.contact_info || '').match(/(\d{9,11})/);
+    if (phoneMatch) phone = phoneMatch[1];
+  }
+
+  return {
+    issueType: issueType || 'Sự cố chung',
+    priority: priority || 'Bình thường',
+    teacherInfo: teacherInfo || msg.full_name.replace('[Giáo viên]', '').trim(),
+    phone: phone || '',
+    details: details || content,
+  };
+}
 
 export function adminPage() {
-  return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">QUẢN TRỊ NỘI BỘ</span><h1>Hệ thống quản trị DriNet</h1><p>Quản lý giáo viên, theo dõi yêu cầu tư vấn học lái, kiểm duyệt đánh giá và phản hồi học viên.</p></div></section><main class="container section admin-page"><div class="admin-tabs"><button class="admin-tab active" data-tab="teachers" type="button">Hồ sơ giáo viên <span id="badge-teachers" class="admin-badge">…</span></button><button class="admin-tab" data-tab="requests" type="button">Yêu cầu tư vấn <span id="badge-requests" class="admin-badge">…</span></button><button class="admin-tab" data-tab="reviews" type="button">Đánh giá học viên <span id="badge-reviews" class="admin-badge">…</span></button><button class="admin-tab" data-tab="contacts" type="button">Tin nhắn liên hệ <span id="badge-contacts" class="admin-badge">…</span></button></div><section class="panel admin-list-panel"><div class="admin-list-heading"><div><h2 id="admin-panel-title">Quản lý hồ sơ giáo viên</h2><p id="admin-panel-desc">Xem, chỉnh sửa và xét duyệt thông tin giáo viên.</p></div><button id="refresh-admin-data" class="btn btn-light" type="button">Tải lại dữ liệu</button></div><div id="admin-tab-content" class="admin-teacher-list"></div><p id="admin-form-message" class="admin-message" aria-live="polite"></p></section><section id="admin-edit-panel" class="panel admin-edit-panel" hidden></section></main>';
+  return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">QUẢN TRỊ NỘI BỘ</span><h1>Hệ thống quản trị DriNet</h1><p>Quản lý giáo viên, tiếp nhận yêu cầu học lái & tin nhắn học viên, hỗ trợ sự cố giáo viên.</p></div></section><main class="container section admin-page"><div class="admin-tabs"><button class="admin-tab active" data-tab="teachers" type="button">Hồ sơ giáo viên <span id="badge-teachers" class="admin-badge">…</span></button><button class="admin-tab" data-tab="requests" type="button">Yêu cầu tư vấn & Học viên <span id="badge-requests" class="admin-badge">…</span></button><button class="admin-tab" data-tab="reviews" type="button">Đánh giá học viên <span id="badge-reviews" class="admin-badge">…</span></button><button class="admin-tab" data-tab="contacts" type="button">Hỗ trợ giáo viên <span id="badge-contacts" class="admin-badge">…</span></button></div><section class="panel admin-list-panel"><div class="admin-list-heading"><div><h2 id="admin-panel-title">Quản lý hồ sơ giáo viên</h2><p id="admin-panel-desc">Xem, chỉnh sửa và xét duyệt thông tin giáo viên.</p></div><button id="refresh-admin-data" class="btn btn-light" type="button">Tải lại dữ liệu</button></div><div id="admin-tab-content" class="admin-teacher-list"></div><p id="admin-form-message" class="admin-message" aria-live="polite"></p></section><section id="admin-edit-panel" class="panel admin-edit-panel" hidden></section></main>';
 }
 
 async function updateBadges() {
@@ -51,8 +104,11 @@ async function updateBadges() {
       supabase.from('teachers').select('*', { count: 'exact', head: true }),
       supabase.from('student_requests').select('*', { count: 'exact', head: true }).eq('status', 'new'),
       supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase.from('contact_messages').select('*', { count: 'exact', head: true }).eq('status', 'new'),
+      supabase.from('contact_messages').select('full_name, content, status'),
     ]);
+
+    const newTeacherReports = (allContacts || []).filter((c) => isTeacherSupportMessage(c) && c.status === 'new').length;
+    const newStudentContacts = (allContacts || []).filter((c) => !isTeacherSupportMessage(c) && c.status === 'new').length;
 
     const bTeachers = document.querySelector('#badge-teachers');
     const bRequests = document.querySelector('#badge-requests');
@@ -60,9 +116,9 @@ async function updateBadges() {
     const bContacts = document.querySelector('#badge-contacts');
 
     if (bTeachers) bTeachers.textContent = teachersCount ?? 0;
-    if (bRequests) bRequests.textContent = newRequestsCount ?? 0;
+    if (bRequests) bRequests.textContent = (newRequestsCount ?? 0) + newStudentContacts;
     if (bReviews) bReviews.textContent = pendingReviewsCount ?? 0;
-    if (bContacts) bContacts.textContent = newContactsCount ?? 0;
+    if (bContacts) bContacts.textContent = newTeacherReports;
   } catch (err) {
     console.warn('Không thể cập nhật số lượng admin badge:', err);
   }
@@ -136,56 +192,110 @@ async function renderRequestsTab() {
   const container = document.querySelector('#admin-tab-content');
   const title = document.querySelector('#admin-panel-title');
   const desc = document.querySelector('#admin-panel-desc');
-  if (title) title.textContent = 'Yêu cầu tư vấn học lái';
-  if (desc) desc.textContent = 'Danh sách học viên gửi nhu cầu tư vấn hoặc chọn giáo viên cụ thể.';
+  if (title) title.textContent = 'Yêu cầu tư vấn & Tin nhắn học viên';
+  if (desc) desc.textContent = 'Quản lý yêu cầu đăng ký học lái và các câu hỏi, tin nhắn gửi từ học viên bên ngoài.';
 
-  container.innerHTML = renderSpinner('Đang tải danh sách yêu cầu, vui lòng chờ…');
+  container.innerHTML = renderSpinner('Đang tải danh sách yêu cầu & tin nhắn học viên, vui lòng chờ…');
 
   const [
-    { data: requests, error },
+    { data: requests, error: requestsError },
     { data: teachers },
+    { data: contacts, error: contactsError },
   ] = await Promise.all([
     supabase.from('student_requests').select('*').order('created_at', { ascending: false }),
     supabase.from('teachers').select('id, display_name, area'),
+    supabase.from('contact_messages').select('*').order('created_at', { ascending: false }),
   ]);
 
-  if (error) throw error;
+  if (requestsError) throw requestsError;
+  if (contactsError) throw contactsError;
 
   const teacherMap = new Map((teachers || []).map((t) => [t.id, t.display_name + ' (' + t.area + ')']));
+  const studentContacts = (contacts || []).filter((c) => !isTeacherSupportMessage(c));
 
-  if (!requests || !requests.length) {
-    container.innerHTML = '<p class="login-intro">Chưa có yêu cầu tư vấn học lái nào.</p>';
+  const leadItems = (requests || []).map((r) => ({ ...r, _itemType: 'request' }));
+  const contactItems = studentContacts.map((c) => ({ ...c, _itemType: 'contact' }));
+
+  const leadsCount = leadItems.length;
+  const messagesCount = contactItems.length;
+  const totalCount = leadsCount + messagesCount;
+
+  let itemsToRender = [];
+  if (currentRequestsFilter === 'leads') {
+    itemsToRender = leadItems;
+  } else if (currentRequestsFilter === 'messages') {
+    itemsToRender = contactItems;
+  } else {
+    itemsToRender = [...leadItems, ...contactItems].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+
+  const subFilterHtml = `
+    <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:13px;font-weight:700;color:var(--muted);margin-right:4px">Lọc theo:</span>
+      <button class="btn btn-sm ${currentRequestsFilter === 'all' ? 'btn-primary' : 'btn-light'}" data-req-filter="all" type="button">Tất cả (${totalCount})</button>
+      <button class="btn btn-sm ${currentRequestsFilter === 'leads' ? 'btn-primary' : 'btn-light'}" data-req-filter="leads" type="button">📋 Đăng ký học lái (${leadsCount})</button>
+      <button class="btn btn-sm ${currentRequestsFilter === 'messages' ? 'btn-primary' : 'btn-light'}" data-req-filter="messages" type="button">💬 Tin nhắn học viên (${messagesCount})</button>
+    </div>
+  `;
+
+  if (!itemsToRender.length) {
+    container.innerHTML = subFilterHtml + '<p class="login-intro">Không có dữ liệu nào trong danh mục được chọn.</p>';
     return;
   }
 
-  container.innerHTML = requests.map((req) => {
-    const teacherName = req.requested_teacher_id
-      ? teacherMap.get(req.requested_teacher_id) || 'Giáo viên đã chọn'
-      : 'DriNet tư vấn giáo viên phù hợp';
+  const itemsHtml = itemsToRender.map((item) => {
+    const dateStr = new Date(item.created_at).toLocaleString('vi-VN');
 
-    const dateStr = new Date(req.created_at).toLocaleString('vi-VN');
+    if (item._itemType === 'request') {
+      const teacherName = item.requested_teacher_id
+        ? teacherMap.get(item.requested_teacher_id) || 'Giáo viên đã chọn'
+        : 'DriNet tư vấn giáo viên phù hợp';
+      const cleanPhone = String(item.phone || '').replace(/\D/g, '');
+
+      return '<article class="admin-item-card"><div class="admin-item-main"><h3>' +
+        escapeHtml(item.full_name) +
+        ' <span style="background:#e0f2fe;color:#0369a1;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">📋 Đăng ký học lái</span>' +
+        ' <span class="admin-status status-' + item.status + '">' + (requestStatusLabel[item.status] || item.status) + '</span></h3>' +
+        '<div class="admin-item-meta"><span>Số điện thoại/Zalo:</span> <b>' + escapeHtml(item.phone) + '</b>' +
+        (cleanPhone ? ' <a href="tel:' + cleanPhone + '" style="color:var(--blue);font-weight:700;font-size:12px;margin-left:4px">📞 Gọi</a>' : '') +
+        (item.email ? '<span>Email:</span> <b>' + escapeHtml(item.email) + '</b>' : '') +
+        '<span>Hạng bằng:</span> <b>' + escapeHtml(item.license_goal) + '</b>' +
+        '<span>Giấy phép học viên:</span> <b>' + (item.has_learner_permit ? 'Đã có' : 'Chưa có') + '</b></div>' +
+        '<div class="admin-item-meta"><span>Khu vực thuận tiện:</span> <b>' + escapeHtml(item.preferred_area) + '</b>' +
+        '<span>Thời gian học:</span> <b>' + escapeHtml(item.preferred_time || 'Linh hoạt') + '</b>' +
+        '<span>Nguyện vọng:</span> <b>' + escapeHtml(teacherName) + '</b>' +
+        '<span>Thời gian gửi:</span> <small>' + dateStr + '</small></div>' +
+        (item.notes ? '<p class="admin-item-body"><b>Ghi chú nhu cầu:</b> ' + escapeHtml(item.notes) + '</p>' : '') +
+        (item.admin_note ? '<p style="font-size:12px;color:var(--muted);margin:4px 0">Ghi chú nội bộ: ' + escapeHtml(item.admin_note) + '</p>' : '') +
+        '</div><div class="admin-btn-group">' +
+        (item.status === 'new' ? '<button class="admin-btn admin-btn-primary" data-req-action="contacted" data-id="' + item.id + '" type="button">Đã liên hệ</button>' : '') +
+        (['new', 'contacted'].includes(item.status) ? '<button class="admin-btn admin-btn-success" data-req-action="confirmed" data-id="' + item.id + '" type="button">Xác nhận học</button>' : '') +
+        (['new', 'contacted'].includes(item.status) ? '<button class="admin-btn admin-btn-danger" data-req-action="cancelled" data-id="' + item.id + '" type="button">Hủy yêu cầu</button>' : '') +
+        (item.status === 'confirmed' ? '<button class="admin-btn admin-btn-primary" data-req-action="closed" data-id="' + item.id + '" type="button">Học xong</button>' : '') +
+        (['confirmed', 'closed', 'cancelled'].includes(item.status) ? '<button class="admin-btn admin-btn-danger" data-req-delete="' + item.id + '" data-name="' + escapeHtml(item.full_name) + '" type="button">🗑 Xóa</button>' : '') +
+        '</div></article>';
+    }
+
+    // item._itemType === 'contact' (học viên/khách liên hệ bên ngoài)
+    const phoneMatch = String(item.contact_info || '').match(/(\d{9,11})/);
+    const cleanPhone = phoneMatch ? phoneMatch[1] : '';
 
     return '<article class="admin-item-card"><div class="admin-item-main"><h3>' +
-      escapeHtml(req.full_name) +
-      ' <span class="admin-status status-' + req.status + '">' + (requestStatusLabel[req.status] || req.status) + '</span></h3>' +
-      '<div class="admin-item-meta"><span>Số điện thoại/Zalo:</span> <b>' + escapeHtml(req.phone) + '</b>' +
-      (req.email ? '<span>Email:</span> <b>' + escapeHtml(req.email) + '</b>' : '') +
-      '<span>Hạng bằng:</span> <b>' + escapeHtml(req.license_goal) + '</b>' +
-      '<span>Giấy phép học viên:</span> <b>' + (req.has_learner_permit ? 'Đã có' : 'Chưa có') + '</b></div>' +
-      '<div class="admin-item-meta"><span>Khu vực thuận tiện:</span> <b>' + escapeHtml(req.preferred_area) + '</b>' +
-      '<span>Thời gian học:</span> <b>' + escapeHtml(req.preferred_time || 'Linh hoạt') + '</b>' +
-      '<span>Nguyện vọng:</span> <b>' + escapeHtml(teacherName) + '</b>' +
+      escapeHtml(item.full_name) +
+      ' <span style="background:#e0e7ff;color:#4338ca;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">💬 Tin nhắn học viên</span>' +
+      ' <span class="admin-status status-' + item.status + '">' + (contactStatusLabel[item.status] || item.status) + '</span></h3>' +
+      '<div class="admin-item-meta"><span>Thông tin liên hệ:</span> <b>' + escapeHtml(item.contact_info) + '</b>' +
+      (cleanPhone ? ' <a href="tel:' + cleanPhone + '" style="color:var(--blue);font-weight:700;font-size:12px;margin-left:4px">📞 Gọi</a>' : '') +
       '<span>Thời gian gửi:</span> <small>' + dateStr + '</small></div>' +
-      (req.notes ? '<p class="admin-item-body">' + escapeHtml(req.notes) + '</p>' : '') +
-      (req.admin_note ? '<p style="font-size:12px;color:var(--muted);margin:4px 0">Ghi chú nội bộ: ' + escapeHtml(req.admin_note) + '</p>' : '') +
+      '<p class="admin-item-body">' + escapeHtml(item.content) + '</p>' +
       '</div><div class="admin-btn-group">' +
-      (req.status === 'new' ? '<button class="admin-btn admin-btn-primary" data-req-action="contacted" data-id="' + req.id + '" type="button">Đã liên hệ</button>' : '') +
-      (['new', 'contacted'].includes(req.status) ? '<button class="admin-btn admin-btn-success" data-req-action="confirmed" data-id="' + req.id + '" type="button">Xác nhận học</button>' : '') +
-      (['new', 'contacted'].includes(req.status) ? '<button class="admin-btn admin-btn-danger" data-req-action="cancelled" data-id="' + req.id + '" type="button">Hủy yêu cầu</button>' : '') +
-      (req.status === 'confirmed' ? '<button class="admin-btn admin-btn-primary" data-req-action="closed" data-id="' + req.id + '" type="button">Học xong</button>' : '') +
-      (['confirmed', 'closed', 'cancelled'].includes(req.status) ? '<button class="admin-btn admin-btn-danger" data-req-delete="' + req.id + '" data-name="' + escapeHtml(req.full_name) + '" type="button">🗑 Xóa</button>' : '') +
+      (item.status === 'new' ? '<button class="admin-btn admin-btn-primary" data-contact-action="read" data-id="' + item.id + '" type="button">Đã xem</button>' : '') +
+      (item.status !== 'resolved' ? '<button class="admin-btn admin-btn-success" data-contact-action="resolved" data-id="' + item.id + '" type="button">Đã xử lý / Trả lời</button>' : '') +
+      '<button class="admin-btn admin-btn-danger" data-contact-delete="' + item.id + '" data-name="' + escapeHtml(item.full_name) + '" type="button">🗑 Xóa</button>' +
       '</div></article>';
   }).join('');
+
+  container.innerHTML = subFilterHtml + itemsHtml;
 }
 
 async function renderReviewsTab() {
@@ -232,10 +342,10 @@ async function renderContactsTab() {
   const container = document.querySelector('#admin-tab-content');
   const title = document.querySelector('#admin-panel-title');
   const desc = document.querySelector('#admin-panel-desc');
-  if (title) title.textContent = 'Tin nhắn liên hệ';
-  if (desc) desc.textContent = 'Theo dõi và xử lý các tin nhắn từ biểu mẫu liên hệ DriNet.';
+  if (title) title.textContent = 'Yêu cầu hỗ trợ & Sự cố từ giáo viên';
+  if (desc) desc.textContent = 'Tiếp nhận, xử lý sự cố kỹ thuật và các vấn đề phản ánh do giáo viên gửi đến Ban Quản trị.';
 
-  container.innerHTML = renderSpinner('Đang tải tin nhắn liên hệ, vui lòng chờ…');
+  container.innerHTML = renderSpinner('Đang tải danh sách yêu cầu hỗ trợ từ giáo viên, vui lòng chờ…');
 
   const { data: contacts, error } = await supabase
     .from('contact_messages')
@@ -244,23 +354,42 @@ async function renderContactsTab() {
 
   if (error) throw error;
 
-  if (!contacts || !contacts.length) {
-    container.innerHTML = '<p class="login-intro">Chưa có tin nhắn liên hệ nào.</p>';
+  const teacherMessages = (contacts || []).filter(isTeacherSupportMessage);
+
+  if (!teacherMessages.length) {
+    container.innerHTML = '<p class="login-intro">Hiện chưa có yêu cầu hỗ trợ nào từ phía giáo viên.</p>';
     return;
   }
 
-  container.innerHTML = contacts.map((c) => {
+  container.innerHTML = teacherMessages.map((c) => {
     const dateStr = new Date(c.created_at).toLocaleString('vi-VN');
+    const report = parseTeacherReport(c);
+
+    let priorityBadge = '<span style="background:#e0f2fe;color:#0369a1;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">🟢 Bình thường</span>';
+    if (report.priority.includes('Khẩn cấp')) {
+      priorityBadge = '<span style="background:#fee2e2;color:#b91c1c;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">🔴 Khẩn cấp</span>';
+    } else if (report.priority.includes('gấp')) {
+      priorityBadge = '<span style="background:#fef3c7;color:#b45309;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">🟡 Cần gấp trong ngày</span>';
+    }
+
+    const cleanPhone = String(report.phone || '').replace(/\D/g, '');
 
     return '<article class="admin-item-card"><div class="admin-item-main"><h3>' +
-      escapeHtml(c.full_name) +
-      ' <span class="admin-status status-' + c.status + '">' + (contactStatusLabel[c.status] || c.status) + '</span></h3>' +
-      '<div class="admin-item-meta"><span>Thông tin liên hệ:</span> <b>' + escapeHtml(c.contact_info) + '</b>' +
+      '👨‍🏫 ' + escapeHtml(report.teacherInfo || c.full_name) +
+      ' <span style="background:#ede9fe;color:#6d28d9;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">Giáo viên</span> ' +
+      priorityBadge +
+      ' <span class="admin-status status-' + c.status + '">' + (teacherSupportStatusLabel[c.status] || c.status) + '</span></h3>' +
+      '<div class="admin-item-meta">' +
+      '<span>Loại sự cố:</span> <b>' + escapeHtml(report.issueType) + '</b>' +
+      '<span>Liên hệ lại:</span> <b>' + escapeHtml(report.phone || 'Chưa cung cấp') + '</b>' +
+      (cleanPhone ? ' <a href="tel:' + cleanPhone + '" style="color:var(--blue);font-weight:700;font-size:12px;margin-left:4px">📞 Gọi giáo viên</a>' : '') +
       '<span>Thời gian gửi:</span> <small>' + dateStr + '</small></div>' +
-      '<p class="admin-item-body">' + escapeHtml(c.content) + '</p>' +
+      '<div class="admin-item-meta"><span>Chi tiết tài khoản/email:</span> <b>' + escapeHtml(c.contact_info) + '</b></div>' +
+      '<div class="admin-item-body" style="border-left-color:var(--orange)"><b>Nội dung sự cố:</b><br>' + escapeHtml(report.details).replace(/\n/g, '<br>') + '</div>' +
       '</div><div class="admin-btn-group">' +
-      (c.status === 'new' ? '<button class="admin-btn admin-btn-primary" data-contact-action="read" data-id="' + c.id + '" type="button">Đã xem</button>' : '') +
-      (c.status !== 'resolved' ? '<button class="admin-btn admin-btn-success" data-contact-action="resolved" data-id="' + c.id + '" type="button">Đã xử lý</button>' : '') +
+      (c.status === 'new' ? '<button class="admin-btn admin-btn-primary" data-contact-action="read" data-id="' + c.id + '" type="button">Đang xử lý</button>' : '') +
+      (c.status !== 'resolved' ? '<button class="admin-btn admin-btn-success" data-contact-action="resolved" data-id="' + c.id + '" type="button">✓ Đã giải quyết</button>' : '') +
+      '<button class="admin-btn admin-btn-danger" data-contact-delete="' + c.id + '" data-name="' + escapeHtml(c.full_name) + '" type="button">🗑 Xóa</button>' +
       '</div></article>';
   }).join('');
 }
@@ -327,6 +456,8 @@ export function bindAdminPage() {
     const revBtn = event.target.closest('[data-review-action]');
     const contactBtn = event.target.closest('[data-contact-action]');
     const reqDeleteBtn = event.target.closest('[data-req-delete]');
+    const contactDeleteBtn = event.target.closest('[data-contact-delete]');
+    const filterBtn = event.target.closest('[data-req-filter]');
 
     try {
       if (viewDoc) {
@@ -335,6 +466,12 @@ export function bindAdminPage() {
         const { data, error } = await supabase.storage.from('teacher-documents').createSignedUrl(path, 3600);
         if (error) throw error;
         window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
+      if (filterBtn) {
+        currentRequestsFilter = filterBtn.dataset.reqFilter;
+        await renderRequestsTab();
         return;
       }
 
@@ -405,7 +542,19 @@ export function bindAdminPage() {
         const id = contactBtn.dataset.id;
         const { error } = await supabase.from('contact_messages').update({ status: action }).eq('id', id);
         if (error) throw error;
-        message.textContent = 'Đã cập nhật trạng thái tin nhắn liên hệ.';
+        message.textContent = 'Đã cập nhật trạng thái tin nhắn thành công.';
+        message.className = 'admin-message success';
+        await loadCurrentTab();
+        return;
+      }
+
+      if (contactDeleteBtn) {
+        const id = contactDeleteBtn.dataset.contactDelete;
+        const name = contactDeleteBtn.dataset.name || 'tin nhắn này';
+        if (!confirm('Bạn có chắc chắn muốn xóa tin nhắn của "' + name + '"?')) return;
+        const { error } = await supabase.from('contact_messages').delete().eq('id', id);
+        if (error) throw error;
+        message.textContent = 'Đã xóa tin nhắn thành công.';
         message.className = 'admin-message success';
         await loadCurrentTab();
         return;
