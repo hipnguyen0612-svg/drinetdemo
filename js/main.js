@@ -21,6 +21,7 @@ const routes = {
   '/lien-he': contact,
   '/dieu-khoan': terms,
   '/dang-nhap': loginPage,
+  '/dang-ky': loginPage,
   '/ho-so': accountPage,
   '/admin': adminPage,
 };
@@ -55,7 +56,7 @@ async function render() {
     if (teacher) bindTeacherProfile(teacher);
   }
   if (path === '/admin' && isAdmin()) bindAdminPage();
-  if (path === '/dang-nhap' || (path === '/admin' && !isAdmin()) || (path === '/ho-so' && !getCurrentUser())) bindLoginPage();
+  if (path === '/dang-nhap' || path === '/dang-ky' || (path === '/admin' && !isAdmin()) || (path === '/ho-so' && !getCurrentUser())) bindLoginPage();
   if (path === '/ho-so' && getCurrentUser()) bindAccountPage();
   window.scrollTo({ top: 0, behavior: 'instant' });
   document.title = path === '/' ? 'DriNet — Kết nối đúng người dạy' : `DriNet | ${path.split('/').pop()}`;

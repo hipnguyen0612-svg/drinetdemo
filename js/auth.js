@@ -84,11 +84,45 @@ export function bindAccountPage() {
 
 
 export function loginPage() {
-  return `<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">TÀI KHOẢN DRINET</span><h1>Đăng nhập</h1><p>Đăng nhập để quản lý tài khoản DriNet của bạn.</p></div></section><main class="container section"><div class="login-card panel"><h2>Chào mừng đến DriNet</h2><p class="login-intro">Nhập email và mật khẩu của bạn để tiếp tục.</p><form id="login-form" class="login-form"><label>Email</label><input name="email" type="email" autocomplete="username" required><label>Mật khẩu</label><input name="password" type="password" autocomplete="current-password" minlength="6" required><button class="btn btn-primary" type="submit">Đăng nhập</button></form><button id="password-recovery" class="text-button" type="button">Quên mật khẩu?</button><hr class="form-divider"><h3>Tạo tài khoản học viên</h3><form id="signup-form" class="login-form"><label>Họ và tên</label><input name="fullName" autocomplete="name" required><label>Email</label><input name="email" type="email" autocomplete="email" required><label>Mật khẩu</label><input name="password" type="password" autocomplete="new-password" minlength="6" required><button class="btn btn-light" type="submit">Tạo tài khoản</button></form><p id="login-message" class="admin-message" aria-live="polite"></p></div></main>`;
+  return `<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">TÀI KHOẢN DRINET</span><h1 id="auth-hero-title">Đăng nhập</h1><p id="auth-hero-desc">Đăng nhập để quản lý tài khoản DriNet của bạn.</p></div></section><main class="container section"><div class="login-card panel"><div id="auth-login-view"><h2>Chào mừng đến DriNet</h2><p class="login-intro">Nhập email và mật khẩu của bạn để tiếp tục.</p><form id="login-form" class="login-form"><label>Email</label><input name="email" type="email" autocomplete="username" required placeholder="name@example.com"><label>Mật khẩu</label><input name="password" type="password" autocomplete="current-password" minlength="6" required placeholder="Nhập mật khẩu"><button class="btn btn-primary" type="submit">Đăng nhập</button></form><div class="login-meta-actions"><button id="password-recovery" class="text-button" type="button">Quên mật khẩu?</button><button id="btn-switch-to-signup" class="btn btn-green btn-sm" type="button">Chưa có tài khoản</button></div></div><div id="auth-signup-view" hidden><h2>Đăng ký tài khoản</h2><p class="login-intro">Tạo tài khoản học viên để bắt đầu hành trình học lái cùng DriNet.</p><form id="signup-form" class="login-form"><label>Họ và tên</label><input name="fullName" autocomplete="name" required placeholder="Ví dụ: Nguyễn Văn A"><label>Email</label><input name="email" type="email" autocomplete="email" required placeholder="name@example.com"><label>Mật khẩu</label><input name="password" type="password" autocomplete="new-password" minlength="6" required placeholder="Tối thiểu 6 ký tự"><button class="btn btn-primary" type="submit">Tạo tài khoản</button></form><div class="login-meta-actions" style="justify-content:flex-end;gap:8px"><span style="font-size:13px;color:var(--muted)">Đã có tài khoản?</span><button id="btn-switch-to-login" class="btn btn-light btn-sm" type="button">Đăng nhập ngay</button></div></div><p id="login-message" class="admin-message" aria-live="polite"></p></div></main>`;
 }
 
 export function bindLoginPage() {
   const message = document.querySelector('#login-message');
+  const loginView = document.querySelector('#auth-login-view');
+  const signupView = document.querySelector('#auth-signup-view');
+  const heroTitle = document.querySelector('#auth-hero-title');
+  const heroDesc = document.querySelector('#auth-hero-desc');
+  const btnSwitchToSignup = document.querySelector('#btn-switch-to-signup');
+  const btnSwitchToLogin = document.querySelector('#btn-switch-to-login');
+
+  const setView = (mode) => {
+    if (message) {
+      message.textContent = '';
+      message.className = 'admin-message';
+    }
+    if (mode === 'signup') {
+      if (loginView) loginView.hidden = true;
+      if (signupView) signupView.hidden = false;
+      if (heroTitle) heroTitle.textContent = 'Đăng ký tài khoản';
+      if (heroDesc) heroDesc.textContent = 'Tạo tài khoản học viên để bắt đầu hành trình học lái cùng DriNet.';
+      document.querySelector('#signup-form [name="fullName"]')?.focus();
+    } else {
+      if (signupView) signupView.hidden = true;
+      if (loginView) loginView.hidden = false;
+      if (heroTitle) heroTitle.textContent = 'Đăng nhập';
+      if (heroDesc) heroDesc.textContent = 'Đăng nhập để quản lý tài khoản DriNet của bạn.';
+      document.querySelector('#login-form [name="email"]')?.focus();
+    }
+  };
+
+  btnSwitchToSignup?.addEventListener('click', () => setView('signup'));
+  btnSwitchToLogin?.addEventListener('click', () => setView('login'));
+
+  if (location.hash.startsWith('#/dang-ky') || location.hash.includes('mode=signup')) {
+    setView('signup');
+  }
+
   const showError = (error) => {
     const text = String(error?.message || '');
     if (!message) return;
@@ -113,13 +147,21 @@ export function bindLoginPage() {
   });
   document.querySelector('#signup-form')?.addEventListener('submit', async (event) => {
     event.preventDefault();
+    const button = event.currentTarget.querySelector('button[type="submit"]');
     try {
+      button.disabled = true;
+      button.textContent = 'Đang tạo tài khoản…';
       const data = await signUpWithSupabase(Object.fromEntries(new FormData(event.currentTarget)));
       if (!message) return;
       message.textContent = data.session ? 'Tạo tài khoản thành công. Bạn đã đăng nhập.' : 'Tạo tài khoản thành công. Hãy kiểm tra email để xác nhận trước khi đăng nhập.';
       message.className = 'admin-message success';
       if (data.session) location.hash = '#/';
-    } catch (error) { showError(error); }
+    } catch (error) {
+      showError(error);
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Tạo tài khoản';
+    }
   });
   document.querySelector('#password-recovery')?.addEventListener('click', async () => {
     const email = document.querySelector('#login-form [name="email"]')?.value;
