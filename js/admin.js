@@ -96,10 +96,10 @@ export function adminPage() {
 async function updateBadges() {
   try {
     const [
-      { count: teachersCount },
-      { count: newRequestsCount },
-      { count: pendingReviewsCount },
-      { count: newContactsCount },
+      teachersRes,
+      requestsRes,
+      reviewsRes,
+      contactsRes,
     ] = await Promise.all([
       supabase.from('teachers').select('*', { count: 'exact', head: true }),
       supabase.from('student_requests').select('*', { count: 'exact', head: true }).eq('status', 'new'),
@@ -107,6 +107,7 @@ async function updateBadges() {
       supabase.from('contact_messages').select('full_name, content, status'),
     ]);
 
+    const allContacts = contactsRes?.data || [];
     const newTeacherReports = (allContacts || []).filter((c) => isTeacherSupportMessage(c) && c.status === 'new').length;
     const newStudentContacts = (allContacts || []).filter((c) => !isTeacherSupportMessage(c) && c.status === 'new').length;
 
@@ -115,12 +116,16 @@ async function updateBadges() {
     const bReviews = document.querySelector('#badge-reviews');
     const bContacts = document.querySelector('#badge-contacts');
 
-    if (bTeachers) bTeachers.textContent = teachersCount ?? 0;
-    if (bRequests) bRequests.textContent = (newRequestsCount ?? 0) + newStudentContacts;
-    if (bReviews) bReviews.textContent = pendingReviewsCount ?? 0;
+    if (bTeachers) bTeachers.textContent = teachersRes?.count ?? 0;
+    if (bRequests) bRequests.textContent = (requestsRes?.count ?? 0) + newStudentContacts;
+    if (bReviews) bReviews.textContent = reviewsRes?.count ?? 0;
     if (bContacts) bContacts.textContent = newTeacherReports;
   } catch (err) {
     console.warn('Không thể cập nhật số lượng admin badge:', err);
+    ['badge-teachers', 'badge-requests', 'badge-reviews', 'badge-contacts'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el && el.textContent === '…') el.textContent = '0';
+    });
   }
 }
 
