@@ -40,6 +40,7 @@
 .status-pending,.status-new{background:#edf6ff!important;color:var(--blue)!important}
 .status-rejected,.status-cancelled{background:#ffebee!important;color:#c73535!important}
 .status-read{background:#f1f5f9!important;color:var(--muted)!important}
+.status-matched{background:#f3e8ff!important;color:#7e22ce!important;border:1px solid #e9d5ff!important}
 
 /* Modern loading state */
 .drinet-loading-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px;text-align:center;min-height:180px}

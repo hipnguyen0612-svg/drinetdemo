@@ -262,7 +262,7 @@ async function renderStudentsTab() {
     if (error) throw error;
 
     const total = requests ? requests.length : 0;
-    const newCount = (requests || []).filter((r) => r.status === 'new').length;
+    const newCount = (requests || []).filter((r) => r.status === 'new' || r.status === 'matched').length;
 
     const badge = document.querySelector('#teacher-badge-students');
     if (badge) badge.textContent = newCount > 0 ? `${newCount} mới` : `${total}`;
@@ -270,7 +270,7 @@ async function renderStudentsTab() {
     const statCount = document.querySelector('#stat-students-count');
     const statSub = document.querySelector('#stat-students-sub');
     if (statCount) statCount.textContent = total;
-    if (statSub) statSub.textContent = newCount > 0 ? `${newCount} học viên mới chưa liên hệ` : 'Tất cả đã được xử lý';
+    if (statSub) statSub.textContent = newCount > 0 ? `${newCount} học viên mới / được điều phối cần liên hệ` : 'Tất cả đã được xử lý';
 
     if (!requests || !requests.length) {
       content.innerHTML = `
@@ -298,8 +298,14 @@ async function renderStudentsTab() {
         ${requests.map((req) => {
           const dateStr = new Date(req.created_at).toLocaleDateString('vi-VN');
           const cleanPhone = (req.phone || '').replace(/[^0-9]/g, '');
-          const canContact = req.status === 'new';
-          const canConfirm = req.status === 'new' || req.status === 'contacted';
+          const isDirect = req.requested_teacher_id === activeTeacher.id;
+          const isAssigned = req.assigned_teacher_id === activeTeacher.id && !isDirect;
+          const sourceBadge = isAssigned
+            ? '<span style="background:#f3e8ff;color:#7e22ce;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700;margin-left:4px">🎯 DriNet điều phối</span>'
+            : (isDirect ? '<span style="background:#e0f2fe;color:#0369a1;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700;margin-left:4px">⭐ Học viên chọn bạn</span>' : '');
+
+          const canContact = req.status === 'new' || req.status === 'matched';
+          const canConfirm = req.status === 'new' || req.status === 'matched' || req.status === 'contacted';
           const canClose = req.status === 'confirmed';
 
           return `
@@ -307,6 +313,7 @@ async function renderStudentsTab() {
               <div class="admin-item-main">
                 <h3>
                   ${escapeHtml(req.full_name)}
+                  ${sourceBadge}
                   <span class="tag status-${req.status}">${requestStatusLabels[req.status] || req.status}</span>
                 </h3>
                 <div class="admin-item-meta">
