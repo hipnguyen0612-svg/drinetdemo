@@ -205,7 +205,7 @@ async function renderRequestsTab() {
     { data: contacts, error: contactsError },
   ] = await Promise.all([
     supabase.from('student_requests').select('*').order('created_at', { ascending: false }),
-    supabase.from('teachers').select('id, display_name, area, status, is_accepting_students').order('display_name'),
+    supabase.from('teachers').select('id, display_name, area, status, is_accepting_students, pause_reason').order('display_name'),
     supabase.from('contact_messages').select('*').order('created_at', { ascending: false }),
   ]);
 
@@ -214,6 +214,34 @@ async function renderRequestsTab() {
 
   const teacherMap = new Map((teachers || []).map((t) => [t.id, t.display_name + ' (' + t.area + ')']));
   const studentContacts = (contacts || []).filter((c) => !isTeacherSupportMessage(c));
+
+  const renderTeacherDispatchOptions = (currentAssignedId, defaultLabel) => {
+    const list = teachers || [];
+    const activeTeachers = list.filter((t) => t.is_accepting_students !== false);
+    const pausedTeachers = list.filter((t) => t.is_accepting_students === false);
+
+    let html = `<option value="">${defaultLabel}</option>`;
+    if (activeTeachers.length) {
+      html += '<optgroup label="🟢 Giáo viên sẵn sàng nhận học viên">';
+      html += activeTeachers.map((t) => {
+        const isSelected = currentAssignedId === t.id;
+        const statusNote = t.status === 'approved' ? '' : ' [Chưa duyệt]';
+        return `<option value="${t.id}" data-is-paused="false" ${isSelected ? 'selected' : ''}>${escapeHtml(t.display_name)} (${escapeHtml(t.area)})${statusNote}</option>`;
+      }).join('');
+      html += '</optgroup>';
+    }
+    if (pausedTeachers.length) {
+      html += '<optgroup label="🔴 Tạm ngừng nhận dạy (Hạn chế điều phối)">';
+      html += pausedTeachers.map((t) => {
+        const isSelected = currentAssignedId === t.id;
+        const statusNote = t.status === 'approved' ? '' : ' [Chưa duyệt]';
+        const reasonNote = t.pause_reason ? ` (${escapeHtml(t.pause_reason)})` : '';
+        return `<option value="${t.id}" data-is-paused="true" ${isSelected ? 'selected' : ''}>[Tạm ngừng] ${escapeHtml(t.display_name)} (${escapeHtml(t.area)})${reasonNote}${statusNote}</option>`;
+      }).join('');
+      html += '</optgroup>';
+    }
+    return html;
+  };
 
   const leadItems = (requests || []).map((r) => {
     const isDirect = Boolean(r.requested_teacher_id && !r.wants_consultation);
@@ -300,13 +328,7 @@ async function renderRequestsTab() {
               <summary style="cursor:pointer;color:var(--muted);font-weight:600">🔄 Điều phối lại sang giáo viên khác (nếu cần)</summary>
               <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
                 <select id="assign-select-${item.id}" style="padding:6px 10px;border-radius:7px;border:1px solid #cbd5e1;font-size:12.5px;min-width:210px;max-width:320px;background:#fff">
-                  <option value="">-- Giữ nguyên giáo viên học viên chọn --</option>
-                  ${(teachers || []).map((t) => {
-                    const isSelected = item.assigned_teacher_id === t.id;
-                    const statusNote = t.status === 'approved' ? '' : ' [Chưa duyệt]';
-                    const pausedNote = t.is_accepting_students === false ? ' [🔴 Tạm ngừng]' : '';
-                    return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(t.display_name)} (${escapeHtml(t.area)})${statusNote}${pausedNote}</option>`;
-                  }).join('')}
+                  ${renderTeacherDispatchOptions(item.assigned_teacher_id, '-- Giữ nguyên giáo viên học viên chọn --')}
                 </select>
                 <button class="btn btn-sm btn-primary" data-dispatch-req="${item.id}" type="button" style="padding:6px 14px;font-size:12px">
                   Lưu thay đổi
@@ -323,13 +345,7 @@ async function renderRequestsTab() {
             </div>
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
               <select id="assign-select-${item.id}" style="padding:6px 10px;border-radius:7px;border:1px solid #cbd5e1;font-size:13px;min-width:220px;max-width:340px;background:#fff">
-                <option value="">-- Chọn giáo viên điều phối --</option>
-                ${(teachers || []).map((t) => {
-                  const isSelected = item.assigned_teacher_id === t.id;
-                  const statusNote = t.status === 'approved' ? '' : ' [Chưa duyệt]';
-                  const pausedNote = t.is_accepting_students === false ? ' [🔴 Tạm ngừng]' : '';
-                  return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(t.display_name)} (${escapeHtml(t.area)})${statusNote}${pausedNote}</option>`;
-                }).join('')}
+                ${renderTeacherDispatchOptions(item.assigned_teacher_id, '-- Chọn giáo viên điều phối --')}
               </select>
               <button class="btn btn-sm btn-primary" data-dispatch-req="${item.id}" type="button" style="padding:6px 14px;font-size:12.5px">
                 🚀 Lưu điều phối
@@ -350,13 +366,7 @@ async function renderRequestsTab() {
               <summary style="cursor:pointer;color:var(--muted);font-weight:600">🔄 Thay đổi giáo viên điều phối</summary>
               <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
                 <select id="assign-select-${item.id}" style="padding:6px 10px;border-radius:7px;border:1px solid #cbd5e1;font-size:12.5px;min-width:210px;max-width:320px;background:#fff">
-                  <option value="">-- Hủy điều phối (đưa về chờ) --</option>
-                  ${(teachers || []).map((t) => {
-                    const isSelected = item.assigned_teacher_id === t.id;
-                    const statusNote = t.status === 'approved' ? '' : ' [Chưa duyệt]';
-                    const pausedNote = t.is_accepting_students === false ? ' [🔴 Tạm ngừng]' : '';
-                    return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(t.display_name)} (${escapeHtml(t.area)})${statusNote}${pausedNote}</option>`;
-                  }).join('')}
+                  ${renderTeacherDispatchOptions(item.assigned_teacher_id, '-- Hủy điều phối (đưa về chờ) --')}
                 </select>
                 <button class="btn btn-sm btn-primary" data-dispatch-req="${item.id}" type="button" style="padding:6px 14px;font-size:12px">
                   Cập nhật
@@ -621,6 +631,17 @@ export function bindAdminPage() {
         const select = document.querySelector(`#assign-select-${id}`);
         const selectedTeacherId = select ? select.value : '';
         const selectedOptionText = select && select.selectedIndex >= 0 ? select.options[select.selectedIndex].text : '';
+
+        if (selectedTeacherId) {
+          const selectedOption = select && select.selectedIndex >= 0 ? select.options[select.selectedIndex] : null;
+          const isPaused = selectedOption?.dataset?.isPaused === 'true';
+          if (isPaused) {
+            const confirmed = window.confirm(
+              `⚠️ Chú ý: Giáo viên "${selectedOptionText.replace(/^\[Tạm ngừng\]\s*/, '')}" hiện đang TẠM NGỪNG nhận học viên mới.\n\nBạn có chắc chắn vẫn muốn gán/điều phối học viên này cho giáo viên không?`
+            );
+            if (!confirmed) return;
+          }
+        }
 
         const updatePayload = {
           assigned_teacher_id: selectedTeacherId || null,

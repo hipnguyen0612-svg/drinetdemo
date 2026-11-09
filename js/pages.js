@@ -12,25 +12,53 @@ export function bindTeacherFilters() {
   const applyButton = document.querySelector('#apply-teacher-filters');
   const resultsCount = document.querySelector('#teacher-results-count');
   const resultsGrid = document.querySelector('#teacher-results');
+  const availTabs = document.querySelectorAll('#teacher-avail-tabs .avail-tab');
 
   if (!areaFilter || !licenseFilter || !reviewFilter || !resultsCount || !resultsGrid) return;
 
+  let currentAvail = 'active';
+
   const applyFilters = () => {
-    const filteredTeachers = getTeachers().filter((teacher) => {
+    const all = getTeachers();
+    const filteredTeachers = all.filter((teacher) => {
       const matchesArea = areaFilter.value === 'all' || teacher.area === areaFilter.value;
       const matchesLicense = licenseFilter.value === 'all' || (teacher.licenses || '').includes(licenseFilter.value);
       const matchesReviews = reviewFilter.value === 'all' || teacher.reviews > 0;
-      return matchesArea && matchesLicense && matchesReviews;
+      const matchesAvail =
+        currentAvail === 'all' ? true :
+        currentAvail === 'active' ? (teacher.is_accepting_students !== false) :
+        (teacher.is_accepting_students === false);
+      return matchesArea && matchesLicense && matchesReviews && matchesAvail;
     });
 
-    const total = filteredTeachers.length;
+    const sortedTeachers = [...filteredTeachers].sort((a, b) => {
+      const aActive = a.is_accepting_students !== false ? 1 : 0;
+      const bActive = b.is_accepting_students !== false ? 1 : 0;
+      if (bActive !== aActive) return bActive - aActive;
+      return Number(b.rating || 0) - Number(a.rating || 0);
+    });
+
+    const total = sortedTeachers.length;
+    let desc = '';
+    if (currentAvail === 'active') desc = ' đang sẵn sàng nhận học viên';
+    else if (currentAvail === 'paused') desc = ' đang tạm ngừng nhận dạy';
+
     resultsCount.innerHTML = total
-      ? 'Hiển thị <b>' + total + ' giáo viên</b> phù hợp'
+      ? 'Hiển thị <b>' + total + ' giáo viên' + desc + '</b> phù hợp'
       : 'Không tìm thấy giáo viên phù hợp với bộ lọc đã chọn.';
     resultsGrid.innerHTML = total
-      ? filteredTeachers.map(teacherCard).join('')
-      : '<div class="empty-results">Hãy thử chọn khu vực hoặc hạng bằng khác để xem thêm giáo viên.</div>';
+      ? sortedTeachers.map(teacherCard).join('')
+      : '<div class="empty-results"><p style="margin:0 0 6px;font-weight:700;color:var(--navy)">Không tìm thấy giáo viên phù hợp</p><p style="margin:0;font-size:13.5px;color:var(--muted)">Hãy thử chuyển sang tab "Tất cả hồ sơ" hoặc chọn lại khu vực/hạng bằng.</p></div>';
   };
+
+  availTabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      availTabs.forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentAvail = tab.dataset.avail;
+      applyFilters();
+    });
+  });
 
   applyButton?.addEventListener('click', applyFilters);
   [areaFilter, licenseFilter, reviewFilter].forEach((filter) => filter.addEventListener('change', applyFilters));
@@ -45,7 +73,34 @@ export function teacherList() {
   const teachers = getTeachers();
   const areas = [...new Set(teachers.map((t) => t.area).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
   const allLicenses = [...new Set(teachers.flatMap((t) => (t.licenses || '').split(',').map((item) => item.trim())).filter(Boolean))].sort();
-  return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">KHÁM PHÁ GIÁO VIÊN</span><h1>Tìm người dạy phù hợp với bạn</h1><p>Lọc và so sánh các giáo viên đã được DriNet xác minh tại Gia Lai.</p></div></section><main class="container section"><div class="filters"><div class="filter-group"><label>Khu vực</label><select id="filter-area"><option value="all">Tất cả khu vực</option>' + areas.map((area) => '<option value="' + escapeHtml(area) + '">' + escapeHtml(area) + '</option>').join('') + '</select></div><div class="filter-group"><label>Hạng bằng</label><select id="filter-license"><option value="all">Tất cả hạng bằng</option>' + allLicenses.map((lic) => '<option value="' + escapeHtml(lic) + '">' + escapeHtml(lic) + '</option>').join('') + '</select></div><div class="filter-group"><label>Đánh giá</label><select id="filter-review"><option value="all">Tất cả hồ sơ</option><option value="has-reviews">Có đánh giá</option></select></div><button id="apply-teacher-filters" class="btn btn-primary" type="button">Lọc kết quả</button></div><div class="notice">&#8505; Chỉ các hồ sơ giáo viên đã qua kiểm tra và xác minh mới được hiển thị công khai trên nền tảng.</div><div class="teacher-row"><p id="teacher-results-count" style="font-size:14px;color:var(--muted)">Hiển thị <b>' + teachers.length + ' giáo viên</b> phù hợp</p></div><div id="teacher-results" class="teachers">' + (teachers.length ? teachers.map(teacherCard).join('') : '<div class="empty-results">Chưa có giáo viên nào được phê duyệt hiển thị.</div>') + '</div></main>';
+
+  const activeCount = teachers.filter((t) => t.is_accepting_students !== false).length;
+  const pausedCount = teachers.filter((t) => t.is_accepting_students === false).length;
+  const totalCount = teachers.length;
+
+  const sortedTeachers = [...teachers].sort((a, b) => {
+    const aActive = a.is_accepting_students !== false ? 1 : 0;
+    const bActive = b.is_accepting_students !== false ? 1 : 0;
+    if (bActive !== aActive) return bActive - aActive;
+    return Number(b.rating || 0) - Number(a.rating || 0);
+  });
+  const initialList = sortedTeachers.filter((t) => t.is_accepting_students !== false);
+
+  return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">KHÁM PHÁ GIÁO VIÊN</span><h1>Tìm người dạy phù hợp với bạn</h1><p>Lọc và so sánh các giáo viên đã được DriNet xác minh tại Gia Lai.</p></div></section><main class="container section">' +
+    '<div class="availability-tabs" id="teacher-avail-tabs">' +
+      '<button type="button" class="avail-tab active" data-avail="active">🟢 Đang nhận học viên (' + activeCount + ')</button>' +
+      '<button type="button" class="avail-tab" data-avail="all">Tất cả hồ sơ (' + totalCount + ')</button>' +
+      '<button type="button" class="avail-tab" data-avail="paused">🔴 Tạm ngừng nhận (' + pausedCount + ')</button>' +
+    '</div>' +
+    '<div class="filters">' +
+      '<div class="filter-group"><label>Khu vực</label><select id="filter-area"><option value="all">Tất cả khu vực</option>' + areas.map((area) => '<option value="' + escapeHtml(area) + '">' + escapeHtml(area) + '</option>').join('') + '</select></div>' +
+      '<div class="filter-group"><label>Hạng bằng</label><select id="filter-license"><option value="all">Tất cả hạng bằng</option>' + allLicenses.map((lic) => '<option value="' + escapeHtml(lic) + '">' + escapeHtml(lic) + '</option>').join('') + '</select></div>' +
+      '<div class="filter-group"><label>Đánh giá</label><select id="filter-review"><option value="all">Tất cả hồ sơ</option><option value="has-reviews">Có đánh giá</option></select></div>' +
+      '<button id="apply-teacher-filters" class="btn btn-primary" type="button">Lọc kết quả</button>' +
+    '</div>' +
+    '<div class="notice">&#8505; DriNet ưu tiên hiển thị các giáo viên <b>sẵn sàng nhận học viên mới</b> để bạn trao đổi và sắp xếp lịch học nhanh nhất.</div>' +
+    '<div class="teacher-row"><p id="teacher-results-count" style="font-size:14px;color:var(--muted)">Hiển thị <b>' + initialList.length + ' giáo viên đang sẵn sàng nhận học viên</b></p></div>' +
+    '<div id="teacher-results" class="teachers">' + (initialList.length ? initialList.map(teacherCard).join('') : '<div class="empty-results">Chưa có giáo viên nào sẵn sàng nhận học viên.</div>') + '</div></main>';
 }
 
 export function profile(t) {
@@ -56,27 +111,71 @@ export function profile(t) {
   const isPaused = !t.is_accepting_students;
   const statusTag = isPaused
     ? '<span class="tag tag-paused">🔴 Tạm ngừng nhận dạy</span>'
-    : '<span class="tag">&#10003; Đã xác minh hồ sơ</span>';
+    : '<span class="tag tag-active">🟢 Đang sẵn sàng nhận học viên</span>';
 
   const pausedAlertHtml = isPaused ? `
-    <div class="alert-paused">
-      <span style="font-size:22px">⏸️</span>
+    <div class="alert-paused" style="border-left:4px solid #ef4444;background:#fef2f2">
+      <span style="font-size:26px">⏸️</span>
       <div>
-        <b style="font-size:15px;color:#92400e">Giáo viên hiện đang tạm ngừng nhận học viên mới:</b>
-        <p style="margin:4px 0 0;font-size:13.5px;color:#78350f">
-          Thầy/cô hiện đã đủ học viên hoặc đang tạm nghỉ${t.pause_reason ? ` (Lý do: <i>${escapeHtml(t.pause_reason)}</i>)` : ''}.
-          Bạn có thể tham khảo các giáo viên khác hoặc nhờ DriNet tư vấn điều phối giáo viên phù hợp.
+        <b style="font-size:15.5px;color:#991b1b">Giáo viên hiện đang TẠM NGỪNG nhận học viên mới:</b>
+        <p style="margin:4px 0 0;font-size:13.5px;color:#7f1d1d;line-height:1.5">
+          Thầy/cô <b>${escapeHtml(t.name)}</b> hiện đang tập trung đào tạo học viên khóa hiện tại hoặc tạm nghỉ${t.pause_reason ? ` (Lý do: <i>${escapeHtml(t.pause_reason)}</i>)` : ''}.
+          <br>DriNet tạm đóng chức năng nhận tư vấn trực tiếp với thầy/cô. Bạn có thể nhờ Ban Quản trị DriNet chọn giáo viên khác tại <b>${escapeHtml(t.area)}</b> hoặc tham khảo gợi ý giáo viên sẵn sàng bên dưới.
         </p>
       </div>
     </div>
   ` : '';
 
   const ctaBtnHtml = isPaused
-    ? `<div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+    ? `<div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;align-items:center">
          <button class="btn btn-light" disabled style="opacity:0.65;cursor:not-allowed;background:#f1f5f9;border-color:#cbd5e1;color:#64748b">🔴 Tạm ngừng nhận học viên</button>
-         <a class="btn btn-primary" href="#/dang-ky-hoc">Nhờ DriNet tư vấn giáo viên khác &rarr;</a>
+         <a class="btn btn-primary" href="#/dang-ky-hoc?area=${encodeURIComponent(t.area)}">⚡ Nhờ DriNet chọn giáo viên khác tại ${escapeHtml(t.area)} &rarr;</a>
        </div>`
     : `<a class="btn btn-primary" href="#/dang-ky-hoc?teacher=${encodeURIComponent(t.slug)}" style="margin-top:18px">Yêu cầu tư vấn với giáo viên này &rarr;</a>`;
+
+  const scheduleHtml = isPaused
+    ? `<div class="panel">
+         <h3>Lịch giảng dạy</h3>
+         <div style="padding:24px 16px;text-align:center;background:#f8fafc;border-radius:10px;border:1px dashed #cbd5e1">
+           <div style="font-size:28px;margin-bottom:8px">⏸️</div>
+           <b style="color:var(--navy);display:block;margin-bottom:4px">Đang tạm ngưng nhận lịch học mới</b>
+           <p style="margin:0;font-size:13px;color:var(--muted);line-height:1.5">
+             Thầy/cô đang tạm ngưng xếp lịch cho học viên mới${t.pause_reason ? ` (${escapeHtml(t.pause_reason)})` : ''}. Lịch thực hành sẽ được mở lại sau khi kết thúc đợt học hiện tại.
+           </p>
+         </div>
+       </div>`
+    : `<div class="panel">
+         <h3>Lịch trống trong tuần</h3>
+         <div class="schedule">
+           <span class="slot">T2 · Sáng</span>
+           <span class="slot">T3 · Chiều</span>
+           <span class="slot">T5 · Sáng</span>
+           <span class="slot">T7 · Cả ngày</span>
+         </div>
+       </div>`;
+
+  const allTeachers = getTeachers();
+  const recommendedTeachers = isPaused
+    ? allTeachers.filter((other) => other.id !== t.id && other.is_accepting_students !== false && other.area === t.area).slice(0, 3)
+    : [];
+
+  const recommendationsHtml = recommendedTeachers.length ? `
+    <div class="panel" style="margin-top:24px;background:#f0fdf4;border:1px solid #bbf7d0">
+      <h3 style="color:#166534;margin:0 0 12px;font-size:15.5px">💡 Gợi ý giáo viên sẵn sàng nhận học viên tại ${escapeHtml(t.area)}:</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:12px">
+        ${recommendedTeachers.map((rec) => `
+          <div style="background:#fff;border:1px solid #dcfce7;border-radius:10px;padding:12px;display:flex;align-items:center;gap:12px">
+            <img src="${escapeHtml(rec.img)}" alt="${escapeHtml(rec.name)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid #86efac">
+            <div style="flex:1;min-width:0">
+              <b style="color:var(--navy);font-size:14px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(rec.name)}</b>
+              <span style="font-size:12px;color:var(--muted)">★ ${rec.rating} · ${escapeHtml(rec.licenses)}</span>
+            </div>
+            <a class="btn btn-primary btn-sm" href="#/dang-ky-hoc?teacher=${encodeURIComponent(rec.slug)}" style="padding:6px 10px;font-size:12px">Đăng ký &rarr;</a>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  ` : '';
 
   return '<section class="page-hero"><div class="container"><a href="#/giao-vien" style="font-size:13px;color:#b9dcff">&larr; Quay lại danh sách giáo viên</a><h1>Hồ sơ giáo viên</h1></div></section><main class="container section">' +
     pausedAlertHtml +
@@ -84,7 +183,11 @@ export function profile(t) {
     statusTag +
     '<h1>' + escapeHtml(t.name) + '</h1><p style="color:var(--muted)">' + escapeHtml(t.bio) + '</p><div class="info-grid"><div class="info-item"><b>Kinh nghiệm</b>' + escapeHtml(t.exp) + '</div><div class="info-item"><b>Hạng giảng dạy</b>' + escapeHtml(t.licenses) + '</div><div class="info-item"><b>Khu vực hoạt động</b>' + escapeHtml(t.area) + '</div><div class="info-item"><b>Trung tâm liên kết</b>' + escapeHtml(t.center) + '</div></div>' +
     ctaBtnHtml +
-    '</div></div><div class="grid3" style="margin-top:40px;grid-template-columns:1fr 1fr"><div class="panel"><h3>Lịch trống trong tuần</h3><div class="schedule"><span class="slot">T2 · Sáng</span><span class="slot">T3 · Chiều</span><span class="slot">T5 · Sáng</span><span class="slot">T7 · Cả ngày</span></div></div><div class="panel"><h3>Đánh giá học viên <span class="rating">&#9733; ' + escapeHtml(t.rating) + ' · ' + escapeHtml(t.reviews) + ' lượt đánh giá</span></h3><div id="teacher-profile-reviews" class="reviews" data-teacher-id="' + escapeHtml(t.id) + '"><div class="drinet-loading-state" style="padding:20px;min-height:100px"><div class="drinet-spinner" style="width:28px;height:28px"></div><p class="drinet-loading-text">Đang tải đánh giá…</p></div></div></div></div></main>';
+    '</div></div>' +
+    recommendationsHtml +
+    '<div class="grid3" style="margin-top:40px;grid-template-columns:1fr 1fr">' +
+    scheduleHtml +
+    '<div class="panel"><h3>Đánh giá học viên <span class="rating">&#9733; ' + escapeHtml(t.rating) + ' · ' + escapeHtml(t.reviews) + ' lượt đánh giá</span></h3><div id="teacher-profile-reviews" class="reviews" data-teacher-id="' + escapeHtml(t.id) + '"><div class="drinet-loading-state" style="padding:20px;min-height:100px"><div class="drinet-spinner" style="width:28px;height:28px"></div><p class="drinet-loading-text">Đang tải đánh giá…</p></div></div></div></div></main>';
 }
 
 export async function bindTeacherProfile(teacher) {
@@ -107,18 +210,60 @@ export async function bindTeacherProfile(teacher) {
 function studentRegistrationPage() {
   const currentUser = getCurrentUser();
   const queryTeacher = new URLSearchParams(location.hash.split('?')[1] || '').get('teacher') || '';
+  const queryArea = new URLSearchParams(location.hash.split('?')[1] || '').get('area') || '';
   const teachers = getTeachers();
   const areas = [...new Set(teachers.map((teacher) => teacher.area).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
-  const selectedTeacher = teachers.find((teacher) => teacher.slug === queryTeacher || teacher.name === queryTeacher);
-  const selectedArea = selectedTeacher?.area || '';
-  const teacherOptions = (area) => teachers.filter((teacher) => !area || teacher.area === area).map((teacher) => {
-    const isPaused = !teacher.is_accepting_students;
-    const prefix = isPaused ? '[🔴 Tạm ngừng nhận] ' : '';
-    const disabledAttr = isPaused ? ' disabled style="color:#94a3b8"' : '';
-    return '<option value="' + escapeHtml(teacher.slug) + '"' + (selectedTeacher?.slug === teacher.slug ? ' selected' : '') + disabledAttr + '>' + prefix + escapeHtml(teacher.name) + ' · ' + escapeHtml(teacher.area) + '</option>';
-  }).join('');
 
-  return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">BẮT ĐẦU CÙNG DRINET</span><h1>Đăng ký tư vấn học lái</h1><p>Chỉ mất vài phút để DriNet hiểu nhu cầu và hỗ trợ bạn.</p></div></section><main class="container section"><form id="student-reg-form" class="panel form-card"><h3>Đăng ký tư vấn học lái</h3><div class="notice">&#128274; <b>Quy trình đào tạo minh bạch:</b> Chọn giáo viên &rarr; Chốt hồ sơ &rarr; Nộp 3.000.000đ cọc &rarr; Trao đổi lịch học với giáo viên &rarr; Bắt đầu buổi 1 và theo dõi nhật ký từng buổi dạy trên hệ thống.<br><span style="font-size:12.5px;color:#1e40af;margin-top:4px;display:inline-block">🎁 Hệ thống sẽ tự động cấp tài khoản học viên để bạn theo dõi tiến trình và nhật ký đào tạo.</span></div><div class="form-grid"><div><label>Họ và tên *</label><input name="name" required autocomplete="name" placeholder="Nguyễn Văn A" value="' + escapeHtml(currentUser?.name) + '"></div><div><label>Số điện thoại hoặc Zalo *</label><input name="phone" type="tel" required autocomplete="tel" placeholder="09xxxxxxxx" value="' + escapeHtml(currentUser?.phone) + '"></div><div><label>Email (Nhận tài khoản học viên) *</label><input name="email" type="email" required autocomplete="email" placeholder="hocvien@gmail.com" value="' + escapeHtml(currentUser?.email) + '"></div><div><label>Hạng bằng muốn học *</label><select name="licenseGoal" required><option value="">Chọn hạng bằng</option><option value="Hạng B">Hạng B</option><option value="Hạng C1">Hạng C1</option><option value="Khác">Khác</option></select></div><div><label>Đã có giấy phép học viên? *</label><select name="hasLearnerPermit" required><option value="">Chọn thông tin</option><option value="true">Có</option><option value="false">Chưa</option></select></div><div><label for="registration-area">Khu vực thuận tiện *</label><select id="registration-area" name="area" required><option value="">Chọn khu vực</option>' + areas.map((area) => '<option value="' + escapeHtml(area) + '"' + (area === selectedArea ? ' selected' : '') + '>' + escapeHtml(area) + '</option>').join('') + '</select></div><div><label>Khung giờ học ưa thích</label><select name="preferredTime"><option value="Sáng">Sáng</option><option value="Chiều">Chiều</option><option value="Tối">Tối</option><option value="Cuối tuần">Cuối tuần</option><option value="Linh hoạt">Linh hoạt</option></select></div><div class="full"><label for="registration-teacher">Nguyện vọng giáo viên</label><select id="registration-teacher" name="teacher">' + teacherOptions(selectedArea) + '</select><div id="registration-teacher-hint" class="field-hint" style="font-size:13px;color:var(--muted);margin-top:6px"></div></div><div class="full"><label>Ghi chú thêm về nhu cầu</label><textarea name="notes" rows="3" placeholder="Ví dụ: Chỉ rảnh cuối tuần, cần giáo viên kiên nhẫn, muốn học nhanh…"></textarea></div><div class="full check"><input id="terms-student" type="checkbox" required><label for="terms-student">Tôi đồng ý với <a href="#/dieu-khoan">Điều khoản sử dụng</a> và cho phép liên hệ tư vấn.</label></div></div><button class="btn btn-primary" type="submit">Gửi yêu cầu tư vấn &rarr;</button><div class="form-success" aria-live="polite"></div></form></main>';
+  const matchedTeacher = teachers.find((teacher) => teacher.slug === queryTeacher || teacher.name === queryTeacher);
+  const isRequestedTeacherPaused = Boolean(matchedTeacher && !matchedTeacher.is_accepting_students);
+
+  // If matched teacher is paused, DO NOT select them in form!
+  const selectedTeacher = (matchedTeacher && matchedTeacher.is_accepting_students) ? matchedTeacher : null;
+  const selectedArea = queryArea || selectedTeacher?.area || (isRequestedTeacherPaused ? matchedTeacher.area : '');
+
+  const pausedWarningHtml = isRequestedTeacherPaused ? `
+    <div class="form-paused-teacher-warning">
+      <span style="font-size:24px">⚠️</span>
+      <div>
+        <b style="font-size:15px;color:#991b1b">Thông báo: Thầy/cô ${escapeHtml(matchedTeacher.name)} hiện đang tạm ngừng nhận học viên mới!</b>
+        <p style="margin:4px 0 0;font-size:13px;color:#7f1d1d;line-height:1.5">
+          Thầy/cô hiện đã đủ học viên hoặc đang tạm nghỉ${matchedTeacher.pause_reason ? ` (Lý do: <i>${escapeHtml(matchedTeacher.pause_reason)}</i>)` : ''}.
+          <br>DriNet đã <b>tự động chuyển sang hình thức "Nhờ DriNet tư vấn & chọn giáo viên phù hợp"</b> để Ban Quản trị kết nối giáo viên tương đương tại khu vực <b>${escapeHtml(matchedTeacher.area)}</b> cho bạn.
+        </p>
+      </div>
+    </div>
+  ` : '';
+
+  const teacherOptions = (area) => {
+    const list = teachers.filter((teacher) => !area || teacher.area === area);
+    const activeList = list.filter((t) => t.is_accepting_students !== false);
+    const pausedList = list.filter((t) => t.is_accepting_students === false);
+
+    let html = '<option value="consultation"' + (!selectedTeacher ? ' selected' : '') + '>🎯 Nhờ DriNet tư vấn & điều phối giáo viên phù hợp nhất</option>';
+
+    if (activeList.length) {
+      html += '<optgroup label="🟢 Giáo viên sẵn sàng nhận học viên">';
+      html += activeList.map((t) => {
+        const isSelected = selectedTeacher?.slug === t.slug;
+        return '<option value="' + escapeHtml(t.slug) + '"' + (isSelected ? ' selected' : '') + '>' + escapeHtml(t.name) + ' · ' + escapeHtml(t.area) + ' (' + escapeHtml(t.licenses) + ')</option>';
+      }).join('');
+      html += '</optgroup>';
+    }
+
+    if (pausedList.length) {
+      html += '<optgroup label="🔴 Tạm ngừng nhận học viên (Không khả dụng)">';
+      html += pausedList.map((t) => {
+        return '<option value="' + escapeHtml(t.slug) + '" disabled style="color:#94a3b8">[Tạm ngừng nhận] ' + escapeHtml(t.name) + ' · ' + escapeHtml(t.area) + (t.pause_reason ? ' (' + escapeHtml(t.pause_reason) + ')' : '') + '</option>';
+      }).join('');
+      html += '</optgroup>';
+    }
+
+    return html;
+  };
+
+  return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">BẮT ĐẦU CÙNG DRINET</span><h1>Đăng ký tư vấn học lái</h1><p>Chỉ mất vài phút để DriNet hiểu nhu cầu và hỗ trợ bạn.</p></div></section><main class="container section"><form id="student-reg-form" class="panel form-card"><h3>Đăng ký tư vấn học lái</h3><div class="notice">&#128274; <b>Quy trình đào tạo minh bạch:</b> Chọn giáo viên &rarr; Chốt hồ sơ &rarr; Nộp 3.000.000đ cọc &rarr; Trao đổi lịch học với giáo viên &rarr; Bắt đầu buổi 1 và theo dõi nhật ký từng buổi dạy trên hệ thống.<br><span style="font-size:12.5px;color:#1e40af;margin-top:4px;display:inline-block">🎁 Hệ thống sẽ tự động cấp tài khoản học viên để bạn theo dõi tiến trình và nhật ký đào tạo.</span></div>' +
+    pausedWarningHtml +
+    '<div class="form-grid"><div><label>Họ và tên *</label><input name="name" required autocomplete="name" placeholder="Nguyễn Văn A" value="' + escapeHtml(currentUser?.name) + '"></div><div><label>Số điện thoại hoặc Zalo *</label><input name="phone" type="tel" required autocomplete="tel" placeholder="09xxxxxxxx" value="' + escapeHtml(currentUser?.phone) + '"></div><div><label>Email (Nhận tài khoản học viên) *</label><input name="email" type="email" required autocomplete="email" placeholder="hocvien@gmail.com" value="' + escapeHtml(currentUser?.email) + '"></div><div><label>Hạng bằng muốn học *</label><select name="licenseGoal" required><option value="">Chọn hạng bằng</option><option value="Hạng B">Hạng B</option><option value="Hạng C1">Hạng C1</option><option value="Khác">Khác</option></select></div><div><label>Đã có giấy phép học viên? *</label><select name="hasLearnerPermit" required><option value="">Chọn thông tin</option><option value="true">Có</option><option value="false">Chưa</option></select></div><div><label for="registration-area">Khu vực thuận tiện *</label><select id="registration-area" name="area" required><option value="">Chọn khu vực</option>' + areas.map((area) => '<option value="' + escapeHtml(area) + '"' + (area === selectedArea ? ' selected' : '') + '>' + escapeHtml(area) + '</option>').join('') + '</select></div><div><label>Khung giờ học ưa thích</label><select name="preferredTime"><option value="Sáng">Sáng</option><option value="Chiều">Chiều</option><option value="Tối">Tối</option><option value="Cuối tuần">Cuối tuần</option><option value="Linh hoạt">Linh hoạt</option></select></div><div class="full"><label for="registration-teacher">Nguyện vọng giáo viên</label><select id="registration-teacher" name="teacher">' + teacherOptions(selectedArea) + '</select><div id="registration-teacher-hint" class="field-hint" style="font-size:13px;color:var(--muted);margin-top:6px"></div></div><div class="full"><label>Ghi chú thêm về nhu cầu</label><textarea name="notes" rows="3" placeholder="Ví dụ: Chỉ rảnh cuối tuần, cần giáo viên kiên nhẫn, muốn học nhanh…"></textarea></div><div class="full check"><input id="terms-student" type="checkbox" required><label for="terms-student">Tôi đồng ý với <a href="#/dieu-khoan">Điều khoản sử dụng</a> và cho phép liên hệ tư vấn.</label></div></div><button class="btn btn-primary" type="submit">Gửi yêu cầu tư vấn &rarr;</button><div class="form-success" aria-live="polite"></div></form></main>';
 }
 
 export function bindStudentRegistration() {
@@ -132,15 +277,32 @@ export function bindStudentRegistration() {
   const renderTeacherOptions = () => {
     const selected = teacherSelect.value;
     const matched = teachers.filter((teacher) => !areaSelect.value || teacher.area === areaSelect.value);
-    teacherSelect.innerHTML = '<option value="consultation">Nhờ DriNet tư vấn</option>' +
-      matched.map((t) => {
-        const isPaused = !t.is_accepting_students;
-        const prefix = isPaused ? '[🔴 Tạm ngừng nhận] ' : '';
-        const disabledAttr = isPaused ? ' disabled style="color:#94a3b8"' : '';
-        return '<option value="' + escapeHtml(t.slug) + '"' + disabledAttr + '>' + prefix + escapeHtml(t.name) + ' · ' + escapeHtml(t.area) + '</option>';
+    const activeMatched = matched.filter((t) => t.is_accepting_students !== false);
+    const pausedMatched = matched.filter((t) => t.is_accepting_students === false);
+
+    let html = '<option value="consultation">🎯 Nhờ DriNet tư vấn & điều phối giáo viên phù hợp nhất</option>';
+
+    if (activeMatched.length) {
+      html += '<optgroup label="🟢 Giáo viên sẵn sàng nhận học viên">';
+      html += activeMatched.map((t) => {
+        return '<option value="' + escapeHtml(t.slug) + '">' + escapeHtml(t.name) + ' · ' + escapeHtml(t.area) + ' (' + escapeHtml(t.licenses) + ')</option>';
       }).join('');
-    if ([...teacherSelect.options].some((opt) => opt.value === selected)) {
+      html += '</optgroup>';
+    }
+
+    if (pausedMatched.length) {
+      html += '<optgroup label="🔴 Tạm ngừng nhận học viên (Không khả dụng)">';
+      html += pausedMatched.map((t) => {
+        return '<option value="' + escapeHtml(t.slug) + '" disabled style="color:#94a3b8">[Tạm ngừng nhận] ' + escapeHtml(t.name) + ' · ' + escapeHtml(t.area) + (t.pause_reason ? ' (' + escapeHtml(t.pause_reason) + ')' : '') + '</option>';
+      }).join('');
+      html += '</optgroup>';
+    }
+
+    teacherSelect.innerHTML = html;
+    if ([...teacherSelect.options].some((opt) => opt.value === selected && !opt.disabled)) {
       teacherSelect.value = selected;
+    } else {
+      teacherSelect.value = 'consultation';
     }
     updateTeacherHint();
   };
@@ -150,7 +312,7 @@ export function bindStudentRegistration() {
     if (!hintEl) return;
     const teacherSlug = teacherSelect.value;
     if (!teacherSlug || teacherSlug === 'consultation') {
-      hintEl.innerHTML = '🎯 <i>Hồ sơ sẽ được chuyển tới Ban Quản trị DriNet để tư vấn và điều phối giáo viên phù hợp nhất tại khu vực của bạn.</i>';
+      hintEl.innerHTML = '🎯 <i>Hồ sơ sẽ được chuyển tới Ban Quản trị DriNet để tư vấn và kết nối giáo viên tốt nhất tại khu vực của bạn.</i>';
     } else {
       const t = teachers.find((teacher) => teacher.slug === teacherSlug);
       if (t && !t.is_accepting_students) {
@@ -170,10 +332,16 @@ export function bindStudentRegistration() {
     const submitBtn = form.querySelector('button[type="submit"]');
     const values = new FormData(form);
     const teacherSlug = values.get('teacher');
-    const selectedTeacher = teacherSlug && teacherSlug !== 'consultation'
+    let selectedTeacher = teacherSlug && teacherSlug !== 'consultation'
       ? teachers.find((teacher) => teacher.slug === teacherSlug)
       : null;
-    
+
+    // Strict check: if teacher is paused, prevent direct assignment
+    if (selectedTeacher && !selectedTeacher.is_accepting_students) {
+      showToast(`Thầy/cô ${selectedTeacher.name} hiện đang tạm ngừng nhận dạy. DriNet sẽ chuyển yêu cầu về Ban Quản trị để hỗ trợ bạn.`, 'warning');
+      selectedTeacher = null;
+    }
+
     let { data: { session } } = await supabase.auth.getSession();
     const fullName = String(values.get('name') || '').trim();
     const phone = String(values.get('phone') || '').trim();
@@ -205,6 +373,14 @@ export function bindStudentRegistration() {
       }
     }
 
+    const userNotes = String(values.get('notes') || '').trim();
+    const queryTeacherParam = new URLSearchParams(location.hash.split('?')[1] || '').get('teacher') || '';
+    const initTeacher = teachers.find((t) => t.slug === queryTeacherParam || t.name === queryTeacherParam);
+    const pausedAuditNote = (initTeacher && !initTeacher.is_accepting_students)
+      ? `[Lưu ý]: Học viên ban đầu quan tâm GV ${initTeacher.name} (${initTeacher.area}) hiện đang tạm ngừng nhận (${initTeacher.pause_reason || 'Đủ học viên'}).`
+      : '';
+    const combinedNotes = [pausedAuditNote, userNotes].filter(Boolean).join('\n') || null;
+
     const payload = {
       full_name: fullName,
       phone: phone,
@@ -215,6 +391,7 @@ export function bindStudentRegistration() {
       preferred_time: String(values.get('preferredTime') || '').trim() || null,
       requested_teacher_id: selectedTeacher ? selectedTeacher.id : null,
       wants_consultation: !selectedTeacher,
+      notes: combinedNotes,
       source: 'website',
       student_profile_id: session?.user?.id || null,
       deposit_status: 'unpaid',

@@ -139,7 +139,26 @@ export function nav() {
 }
 export function footer(){return `<a class="quick" href="#/lien-he">💬 Liên hệ nhanh</a><footer class="footer"><div class="container footer-grid"><div><a class="brand" href="#/"><span class="brand-mark">D</span><span>DriNet<small>Driving Network</small></span></a><p>Kết nối đúng người dạy – Vững tay lái trên mọi hành trình.</p><p>DriNet là nền tảng kết nối, không trực tiếp tổ chức đào tạo lái xe.</p></div><div><h4>Khám phá</h4><div class="footer-links"><a href="#/giao-vien">Tìm giáo viên</a><a href="#/dang-ky-hoc">Đăng ký tư vấn</a><a href="#/dang-ky-giao-vien">Tham gia DriNet</a><a href="#/danh-gia">Gửi đánh giá</a></div></div><div><h4>Thông tin</h4><div class="footer-links"><a href="#/ve-chung-toi">Về DriNet</a><a href="#/lien-he">Liên hệ</a><a href="#/dieu-khoan">Điều khoản & bảo mật</a></div></div></div><div class="container copyright">© 2026 DriNet. Hồ sơ giáo viên đã duyệt được đồng bộ từ hệ thống DriNet.</div></footer>`}
 export function teacherCard(t){
-  const statusBadge = !t.is_accepting_students ? '<span class="tag tag-paused">🔴 Tạm ngừng nhận</span>' : '<span class="tag">&#10003; Đã xác minh</span>';
-  return `<article class="teacher-card"><img src="${escapeHtml(t.img)}" alt="${escapeHtml(t.name)}" loading="lazy"><div class="teacher-info">${statusBadge}<div class="teacher-title"><h3>${escapeHtml(t.name)}</h3><span class="rating">&#9733; ${escapeHtml(t.rating)} (${escapeHtml(t.reviews)})</span></div><p>${escapeHtml(t.exp)} · ${escapeHtml(t.area)}</p><div class="teacher-meta"><span class="chip">${escapeHtml(t.licenses)}</span><span class="chip">&#128205; ${escapeHtml(t.area)}</span></div><a class="btn btn-light" style="width:100%;margin-top:14px" href="#/giao-vien/${encodeURIComponent(t.slug)}">Xem hồ sơ &rarr;</a></div></article>`;
+  const isPaused = !t.is_accepting_students;
+  const statusBadge = isPaused
+    ? `<span class="tag tag-paused" title="${escapeHtml(t.pause_reason || 'Tạm ngừng nhận học viên')}">🔴 Tạm ngừng nhận</span>`
+    : `<span class="tag tag-active">🟢 Đang nhận học viên</span>`;
+
+  const cardClass = isPaused ? 'teacher-card teacher-card-paused' : 'teacher-card';
+  const pauseReasonSubtext = isPaused && t.pause_reason
+    ? `<div style="font-size:12px;color:#b91c1c;margin-top:6px;font-style:italic;line-height:1.4">⏸️ ${escapeHtml(t.pause_reason)}</div>`
+    : '';
+
+  const actionButtons = isPaused
+    ? `<div style="margin-top:14px">
+         ${pauseReasonSubtext}
+         <a class="btn btn-light" style="width:100%;margin-top:8px;background:#f8fafc;color:#64748b;font-size:13px" href="#/giao-vien/${encodeURIComponent(t.slug)}">Xem chi tiết &rarr;</a>
+       </div>`
+    : `<div style="display:flex;gap:8px;margin-top:14px">
+         <a class="btn btn-light" style="flex:1;font-size:13px;padding:8px" href="#/giao-vien/${encodeURIComponent(t.slug)}">Hồ sơ</a>
+         <a class="btn btn-primary" style="flex:1.2;font-size:13px;padding:8px" href="#/dang-ky-hoc?teacher=${encodeURIComponent(t.slug)}">Đăng ký học &rarr;</a>
+       </div>`;
+
+  return `<article class="${cardClass}"><img src="${escapeHtml(t.img)}" alt="${escapeHtml(t.name)}" loading="lazy"><div class="teacher-info">${statusBadge}<div class="teacher-title"><h3>${escapeHtml(t.name)}</h3><span class="rating">&#9733; ${escapeHtml(t.rating)} (${escapeHtml(t.reviews)})</span></div><p>${escapeHtml(t.exp)} · ${escapeHtml(t.area)}</p><div class="teacher-meta"><span class="chip">${escapeHtml(t.licenses)}</span><span class="chip">&#128205; ${escapeHtml(t.area)}</span></div>${actionButtons}</div></article>`;
 }
 

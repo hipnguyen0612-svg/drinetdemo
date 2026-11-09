@@ -148,6 +148,20 @@
 .tag-paused{background:#fee2e2!important;color:#b91c1c!important;font-weight:700!important}
 .alert-paused{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin-bottom:20px;color:#92400e;display:flex;align-items:flex-start;gap:12px}
 
+/* Teacher Availability Tabs, Cards & Alerts */
+.availability-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.avail-tab{padding:8px 16px;border-radius:999px;font-size:13px;font-weight:600;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;transition:all .15s ease;display:inline-flex;align-items:center;gap:6px}
+.avail-tab:hover{border-color:#cbd5e1;color:var(--navy);background:#f8fafc}
+.avail-tab.active{background:var(--navy);color:#fff;border-color:var(--navy);box-shadow:0 2px 8px rgba(8,43,89,0.18)}
+.avail-tab.active[data-avail="active"]{background:#15803d;border-color:#15803d}
+.avail-tab.active[data-avail="paused"]{background:#b91c1c;border-color:#b91c1c}
+
+.teacher-card-paused{background:#fafafa;border:1.5px dashed #fca5a5!important;position:relative}
+.teacher-card-paused img{filter:grayscale(25%);opacity:0.88}
+.tag-active{background:#dcfce7!important;color:#15803d!important;font-weight:700!important}
+
+.form-paused-teacher-warning{background:#fef2f2;border:1px solid #fecaca;border-left:4px solid #ef4444;border-radius:10px;padding:14px 16px;margin-bottom:20px;display:flex;align-items:flex-start;gap:12px;font-size:13.5px;color:#991b1b;line-height:1.5}
+
 /* Custom In-Web Dialogs (Confirm, Prompt, Alert) */
 .custom-dialog-backdrop{position:fixed;inset:0;background:rgba(8,43,89,0.68);backdrop-filter:blur(6px);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;animation:dialogFadeIn .2s ease forwards}
 .custom-dialog-backdrop.dialog-leaving{animation:dialogFadeOut .18s ease forwards}
