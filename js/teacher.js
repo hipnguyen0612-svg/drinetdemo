@@ -259,6 +259,22 @@ async function renderStudentsTab() {
 
     if (error) throw error;
 
+    const reqIds = (requests || []).map((r) => r.id);
+    const lessonLogsMap = new Map();
+    if (reqIds.length > 0) {
+      const { data: logs } = await supabase
+        .from('lesson_logs')
+        .select('*')
+        .in('student_request_id', reqIds)
+        .order('lesson_number', { ascending: true });
+      (logs || []).forEach((log) => {
+        if (!lessonLogsMap.has(log.student_request_id)) {
+          lessonLogsMap.set(log.student_request_id, []);
+        }
+        lessonLogsMap.get(log.student_request_id).push(log);
+      });
+    }
+
     const total = requests ? requests.length : 0;
     const newCount = (requests || []).filter((r) => r.status === 'new' || r.status === 'matched').length;
 
@@ -315,6 +331,13 @@ async function renderStudentsTab() {
                   </div>`
                 : '');
 
+          const logs = lessonLogsMap.get(req.id) || [];
+          const totalLessons = req.total_lessons_completed || logs.length;
+          const isDepositPaid = req.deposit_status === 'paid';
+          const isDepositPending = req.deposit_status === 'pending_approval';
+          const isEligible = req.learning_status === 'eligible_for_exam';
+          const isGraduated = req.learning_status === 'graduated';
+
           return `
             <div class="admin-item-card" data-req-id="${req.id}">
               <div class="admin-item-main">
@@ -333,6 +356,41 @@ async function renderStudentsTab() {
                 </div>
                 ${req.notes ? `<div class="admin-item-body"><b>Ghi chú:</b> ${escapeHtml(req.notes)}</div>` : ''}
                 ${noticeHtml}
+
+                <div style="margin-top:12px;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+                    <div style="font-size:13px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                      <b>Cọc 3.000.000đ:</b>
+                      ${isDepositPaid
+                        ? '<span style="background:#e6fcf5;color:#0ca678;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:700">💰 Đã nộp 3.000.000đ cọc</span>'
+                        : (isDepositPending
+                            ? '<span style="background:#fff9db;color:#f59f00;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:700">⏳ Học viên báo đã chuyển cọc</span>'
+                            : '<span style="background:#f1f5f9;color:#64748b;padding:3px 9px;border-radius:6px;font-size:12px">Chưa nộp 3tr cọc</span>')}
+                    </div>
+                    ${!isDepositPaid ? `
+                      <button class="btn btn-sm btn-primary" data-confirm-deposit="${req.id}" data-name="${escapeHtml(req.full_name)}" type="button" style="padding:4px 10px;font-size:12px">
+                        💰 Xác nhận đã nhận 3tr cọc
+                      </button>
+                    ` : ''}
+                  </div>
+
+                  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-top:1px dashed #cbd5e1;padding-top:8px">
+                    <div style="font-size:13px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                      <b>Tiến độ học:</b>
+                      <span style="background:#e0f2fe;color:#0369a1;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:700">Đã dạy: ${totalLessons} buổi</span>
+                      ${isEligible ? '<span style="background:#dcfce7;color:#15803d;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:800">🎓 ĐỦ ĐIỀU KIỆN THI</span>' : ''}
+                      ${isGraduated ? '<span style="background:#e0e7ff;color:#4338ca;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:800">✓ HOÀN THÀNH KHÓA</span>' : ''}
+                    </div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap">
+                      <button class="btn btn-sm btn-primary" data-add-lesson="${req.id}" data-name="${escapeHtml(req.full_name)}" data-next-num="${totalLessons + 1}" type="button" style="padding:5px 11px;font-size:12px">
+                        ➕ Cập nhật buổi dạy
+                      </button>
+                      ${logs.length > 0 ? `<button class="btn btn-sm btn-light" data-view-lessons="${req.id}" data-name="${escapeHtml(req.full_name)}" type="button" style="padding:5px 10px;font-size:12px">📋 Nhật ký (${logs.length})</button>` : ''}
+                      ${!isEligible && !isGraduated ? `<button class="btn btn-sm btn-success" data-mark-eligible="${req.id}" data-name="${escapeHtml(req.full_name)}" type="button" style="background:#10b981;color:#fff;border-color:#10b981;padding:5px 10px;font-size:12px">🎓 Đủ điều kiện thi</button>` : ''}
+                    </div>
+                  </div>
+                </div>
+
                 <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
                   <a class="admin-btn btn-call" href="tel:${escapeHtml(cleanPhone)}">📞 Gọi điện ngay</a>
                   <a class="admin-btn btn-zalo" href="https://zalo.me/${encodeURIComponent(cleanPhone)}" target="_blank" rel="noopener">💬 Nhắn tin Zalo</a>
@@ -376,10 +434,255 @@ async function renderStudentsTab() {
         }
       });
     });
+
+    // Xác nhận đã nhận 3tr cọc
+    content.querySelectorAll('[data-confirm-deposit]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.confirmDeposit;
+        const name = btn.dataset.name || 'học viên này';
+        if (!confirm(`Xác nhận bạn hoặc trung tâm đã nhận đủ 3.000.000đ tiền cọc từ "${name}"?`)) return;
+        btn.disabled = true;
+        try {
+          const { error: depErr } = await supabase
+            .from('student_requests')
+            .update({
+              deposit_status: 'paid',
+              deposit_paid_at: new Date().toISOString(),
+              learning_status: 'schedule_pending',
+              status: 'confirmed',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', id);
+          if (depErr) throw depErr;
+          const msg = document.querySelector('#student-action-msg');
+          if (msg) {
+            msg.textContent = `Đã xác nhận nhận 3.000.000đ cọc từ "${name}". Bước xếp lịch học buổi 1 đã kích hoạt!`;
+            msg.className = 'admin-message success';
+          }
+          await renderStudentsTab();
+        } catch (err) {
+          alert('Lỗi xác nhận cọc: ' + err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+
+    // Xác nhận Đủ điều kiện thi sát hạch
+    content.querySelectorAll('[data-mark-eligible]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.markEligible;
+        const name = btn.dataset.name || 'học viên này';
+        if (!confirm(`Xác nhận học viên "${name}" đã hoàn thành đầy đủ bài học và ĐỦ ĐIỀU KIỆN THI SÁT HẠCH LÁI XE?`)) return;
+        btn.disabled = true;
+        try {
+          const { error: elErr } = await supabase
+            .from('student_requests')
+            .update({
+              learning_status: 'eligible_for_exam',
+              status: 'confirmed',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', id);
+          if (elErr) throw elErr;
+          const msg = document.querySelector('#student-action-msg');
+          if (msg) {
+            msg.textContent = `Đã xác nhận học viên "${name}" đủ điều kiện dự thi sát hạch!`;
+            msg.className = 'admin-message success';
+          }
+          await renderStudentsTab();
+        } catch (err) {
+          alert('Không thể cập nhật: ' + err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+
+    // Cập nhật buổi dạy (Modal)
+    content.querySelectorAll('[data-add-lesson]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const reqId = btn.dataset.addLesson;
+        const studentName = btn.dataset.name || 'Học viên';
+        const nextNum = Number(btn.dataset.nextNum) || 1;
+        openAddLessonModal(reqId, studentName, nextNum);
+      });
+    });
+
+    // Xem nhật ký buổi dạy (Modal)
+    content.querySelectorAll('[data-view-lessons]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const reqId = btn.dataset.viewLessons;
+        const studentName = btn.dataset.name || 'Học viên';
+        const logs = lessonLogsMap.get(reqId) || [];
+        openViewLessonsModal(reqId, studentName, logs);
+      });
+    });
   } catch (err) {
     console.error('Lỗi khi tải yêu cầu học viên:', err);
     content.innerHTML = `<p class="admin-message error">Không thể tải học viên: ${escapeHtml(err.message)}</p>`;
   }
+}
+
+function openAddLessonModal(reqId, studentName, nextNum) {
+  const existingModal = document.querySelector('#add-lesson-modal');
+  if (existingModal) existingModal.remove();
+
+  const today = new Date().toISOString().split('T')[0];
+  const modalHtml = `
+    <div id="add-lesson-modal" class="modal-backdrop">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div>
+            <h3>➕ Cập nhật buổi dạy</h3>
+            <p class="modal-subtitle">Ghi nhận tiến trình thực hành cho học viên <b>${escapeHtml(studentName)}</b></p>
+          </div>
+          <button class="modal-close-btn" type="button">&times;</button>
+        </div>
+        <form id="add-lesson-form">
+          <div class="form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+            <div>
+              <label style="font-size:12.5px;font-weight:700">Buổi số *</label>
+              <input name="lessonNumber" type="number" min="1" required value="${nextNum}" style="width:100%;padding:8px;border-radius:7px;border:1px solid #cbd5e1">
+            </div>
+            <div>
+              <label style="font-size:12.5px;font-weight:700">Thời lượng (giờ) *</label>
+              <input name="durationHours" type="number" step="0.5" min="0.5" max="10" required value="2.0" style="width:100%;padding:8px;border-radius:7px;border:1px solid #cbd5e1">
+            </div>
+            <div style="grid-column:1/-1">
+              <label style="font-size:12.5px;font-weight:700">Ngày học *</label>
+              <input name="lessonDate" type="date" required value="${today}" style="width:100%;padding:8px;border-radius:7px;border:1px solid #cbd5e1">
+            </div>
+            <div style="grid-column:1/-1">
+              <label style="font-size:12.5px;font-weight:700">Nội dung bài học *</label>
+              <textarea id="lesson-content-input" name="content" rows="3" required placeholder="Ví dụ: Làm quen xe, vào số nguội & số nóng, chạy sa hình cơ bản..." style="width:100%;padding:8px;border-radius:7px;border:1px solid #cbd5e1;font-size:13.5px"></textarea>
+              <div class="chip-group">
+                <button class="chip-btn" type="button" data-chip="Làm quen xe & thao tác số nguội/nóng">Làm quen xe & số</button>
+                <button class="chip-btn" type="button" data-chip="11 bài thi sa hình cơ bản">11 bài sa hình</button>
+                <button class="chip-btn" type="button" data-chip="Luyện bài dốc cầu (dừng & khởi hành ngang dốc)">Dốc cầu</button>
+                <button class="chip-btn" type="button" data-chip="Ghép xe dọc vào nơi đỗ (lùi chuồng)">Ghép xe dọc</button>
+                <button class="chip-btn" type="button" data-chip="Ghép xe ngang nơi đỗ">Ghép xe ngang</button>
+                <button class="chip-btn" type="button" data-chip="Thực hành lái xe đường trường DAT">Đường trường DAT</button>
+              </div>
+            </div>
+            <div style="grid-column:1/-1">
+              <label style="font-size:12.5px;font-weight:700">Nhận xét của giáo viên về học viên</label>
+              <textarea name="feedback" rows="2" placeholder="Ví dụ: Học viên tiếp thu nhanh, tay lái vững, cần chú ý quan sát gương chiếu hậu..." style="width:100%;padding:8px;border-radius:7px;border:1px solid #cbd5e1;font-size:13.5px"></textarea>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px">
+            <button class="btn btn-light" type="button" id="btn-cancel-lesson">Hủy</button>
+            <button class="btn btn-primary" type="submit" id="btn-save-lesson">Lưu buổi học</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+  const modalEl = document.querySelector('#add-lesson-modal');
+  const closeBtn = modalEl.querySelector('.modal-close-btn');
+  const cancelBtn = modalEl.querySelector('#btn-cancel-lesson');
+  const form = modalEl.querySelector('#add-lesson-form');
+  const contentInput = modalEl.querySelector('#lesson-content-input');
+
+  const closeModal = () => modalEl.remove();
+  closeBtn.addEventListener('click', closeModal);
+  cancelBtn.addEventListener('click', closeModal);
+
+  modalEl.querySelectorAll('.chip-btn').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const text = chip.dataset.chip;
+      if (contentInput.value) {
+        contentInput.value += ', ' + text;
+      } else {
+        contentInput.value = text;
+      }
+      contentInput.focus();
+    });
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const saveBtn = form.querySelector('#btn-save-lesson');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Đang lưu…';
+
+    const values = new FormData(form);
+    const payload = {
+      student_request_id: reqId,
+      teacher_id: activeTeacher.id,
+      lesson_number: Number(values.get('lessonNumber')) || nextNum,
+      lesson_date: values.get('lessonDate'),
+      duration_hours: Number(values.get('durationHours')) || 2.0,
+      content: String(values.get('content')).trim(),
+      teacher_feedback: String(values.get('feedback')).trim() || null,
+    };
+
+    try {
+      const { error: insErr } = await supabase.from('lesson_logs').insert(payload);
+      if (insErr) throw insErr;
+
+      await supabase
+        .from('student_requests')
+        .update({
+          total_lessons_completed: nextNum,
+          learning_status: 'learning',
+          status: 'confirmed',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', reqId);
+
+      closeModal();
+      await renderStudentsTab();
+    } catch (err) {
+      alert('Không thể lưu buổi dạy: ' + err.message);
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Lưu buổi học';
+    }
+  });
+}
+
+function openViewLessonsModal(reqId, studentName, logs) {
+  const existingModal = document.querySelector('#view-lessons-modal');
+  if (existingModal) existingModal.remove();
+
+  const modalHtml = `
+    <div id="view-lessons-modal" class="modal-backdrop">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div>
+            <h3>📋 Nhật ký đào tạo</h3>
+            <p class="modal-subtitle">Các buổi thực hành đã ghi nhận cho <b>${escapeHtml(studentName)}</b></p>
+          </div>
+          <button class="modal-close-btn" type="button">&times;</button>
+        </div>
+        <div class="lesson-log-list" style="max-height:60vh;overflow-y:auto;padding-right:4px">
+          ${logs.map((log) => `
+            <div class="lesson-log-item">
+              <div style="flex:1">
+                <div class="lesson-log-header">
+                  <span class="lesson-badge">Buổi ${log.lesson_number}</span>
+                  <span class="lesson-date">📅 ${new Date(log.lesson_date).toLocaleDateString('vi-VN')} (${log.duration_hours} giờ)</span>
+                </div>
+                <div class="lesson-content-text"><b>Nội dung:</b> ${escapeHtml(log.content)}</div>
+                ${log.teacher_feedback ? `<div class="lesson-feedback-text">💬 <b>Nhận xét:</b> ${escapeHtml(log.teacher_feedback)}</div>` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:16px">
+          <button class="btn btn-light modal-close-action" type="button">Đóng</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+  const modalEl = document.querySelector('#view-lessons-modal');
+  const closeBtn = modalEl.querySelector('.modal-close-btn');
+  const closeActionBtn = modalEl.querySelector('.modal-close-action');
+  const closeModal = () => modalEl.remove();
+  closeBtn.addEventListener('click', closeModal);
+  closeActionBtn.addEventListener('click', closeModal);
 }
 
 function renderProfileTab() {

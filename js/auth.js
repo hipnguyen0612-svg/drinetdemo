@@ -144,8 +144,8 @@ export function studentAccountPage(user) {
     ? '<div class="panel" style="padding:24px;margin-bottom:24px">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">' +
           '<div>' +
-            '<h3 style="margin:0;color:var(--navy)">Yêu cầu tư vấn của bạn</h3>' +
-            '<p style="margin:2px 0 0;font-size:13px;color:var(--muted)">Danh sách yêu cầu tìm giáo viên hoặc khóa học bạn đã gửi.</p>' +
+            '<h3 style="margin:0;color:var(--navy)">Khóa học lái xe của bạn</h3>' +
+            '<p style="margin:2px 0 0;font-size:13px;color:var(--muted)">Theo dõi giáo viên phụ trách, tiến trình nộp 3tr cọc và nhật ký từng buổi dạy.</p>' +
           '</div>' +
           '<a class="btn btn-light btn-sm" href="#/dang-ky-hoc">Đăng ký yêu cầu mới &rarr;</a>' +
         '</div>' +
@@ -193,6 +193,7 @@ export function studentAccountPage(user) {
         '</form>' +
         '<form id="password-form" class="panel login-form">' +
           '<h2>Đổi mật khẩu</h2>' +
+          '<p class="login-intro" style="margin-bottom:10px">💡 <i>Nếu bạn vừa nhận mật khẩu tạm thời khi đăng ký, hãy đổi mật khẩu mới tại đây để bảo mật tài khoản.</i></p>' +
           '<label>Mật khẩu mới</label>' +
           '<input name="password" type="password" autocomplete="new-password" minlength="6" required placeholder="Tối thiểu 6 ký tự">' +
           '<label>Nhập lại mật khẩu mới</label>' +
@@ -288,11 +289,11 @@ export function bindStudentAccountPage(user) {
   });
 
   if (user.role === 'student') {
-    loadStudentRequestsHistory(user.id);
+    loadStudentRequestsHistory(user);
   }
 }
 
-async function loadStudentRequestsHistory(userId) {
+async function loadStudentRequestsHistory(user) {
   const container = document.querySelector('#student-requests-container');
   if (!container) return;
 
@@ -308,8 +309,8 @@ async function loadStudentRequestsHistory(userId) {
   try {
     const { data: requests, error } = await supabase
       .from('student_requests')
-      .select('*, teacher:requested_teacher_id(display_name), assigned:assigned_teacher_id(display_name)')
-      .eq('student_profile_id', userId)
+      .select('*, teacher:requested_teacher_id(id, display_name, area, licenses, experience_years, bio, center_name), assigned:assigned_teacher_id(id, display_name, area, licenses, experience_years, bio, center_name)')
+      .or(`student_profile_id.eq.${user.id},email.eq.${user.email}`)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -322,18 +323,180 @@ async function loadStudentRequestsHistory(userId) {
       return;
     }
 
+    const reqIds = requests.map((r) => r.id);
+    const lessonLogsMap = new Map();
+    if (reqIds.length > 0) {
+      const { data: logs } = await supabase
+        .from('lesson_logs')
+        .select('*')
+        .in('student_request_id', reqIds)
+        .order('lesson_number', { ascending: true });
+      (logs || []).forEach((log) => {
+        if (!lessonLogsMap.has(log.student_request_id)) {
+          lessonLogsMap.set(log.student_request_id, []);
+        }
+        lessonLogsMap.get(log.student_request_id).push(log);
+      });
+    }
+
     container.innerHTML = requests.map((req) => {
-      const teacherName = req.teacher?.display_name || req.assigned?.display_name || 'DriNet tư vấn & điều phối giáo viên';
-      const dateStr = new Date(req.created_at).toLocaleDateString('vi-VN');
-      return '<div class="student-history-card">' +
-        '<div class="student-history-header">' +
-          '<b style="color:var(--navy)">Khóa học: ' + escapeHtml(req.license_goal || 'Lái xe') + ' · ' + escapeHtml(teacherName) + '</b>' +
-          '<span class="tag status-' + req.status + '">' + (statusLabels[req.status] || req.status) + '</span>' +
+      const activeTeacher = req.teacher || req.assigned;
+      const isDirect = Boolean(req.requested_teacher_id);
+      const teacherTitle = activeTeacher ? activeTeacher.display_name : 'DriNet đang kết nối giáo viên';
+      const teacherBadge = isDirect
+        ? '<span style="background:#e0f2fe;color:#0369a1;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">⭐ Bạn đã chọn trực tiếp</span>'
+        : (req.assigned_teacher_id
+            ? '<span style="background:#f3e8ff;color:#7e22ce;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">🎯 DriNet điều phối</span>'
+            : '<span style="background:#fef3c7;color:#b45309;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">⏳ Chờ điều phối</span>');
+
+      const isDepositPaid = req.deposit_status === 'paid';
+      const isDepositPending = req.deposit_status === 'pending_approval';
+      const cleanPhone = String(req.phone || '').replace(/\D/g, '');
+      const logs = lessonLogsMap.get(req.id) || [];
+      const totalLessons = req.total_lessons_completed || logs.length;
+      const isEligible = req.learning_status === 'eligible_for_exam';
+      const isGraduated = req.learning_status === 'graduated';
+
+      const qrUrl = 'https://img.vietqr.io/image/MB-0901234567-compact2.png?amount=3000000&addInfo=' + encodeURIComponent('COC ' + cleanPhone + ' ' + (req.full_name || 'HocVien'));
+
+      let depositContentHtml = '';
+      if (isDepositPaid) {
+        depositContentHtml = '<div style="margin-top:8px;padding:12px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:13px;color:#166534">' +
+          '<b>✓ Đã xác nhận hoàn tất nộp cọc 3.000.000đ.</b>' +
+          '<div style="font-size:12px;margin-top:2px;color:#15803d">Khoản tiền cọc đã được ghi nhận vào hồ sơ và sẽ trừ trực tiếp vào tổng học phí khóa đào tạo của bạn.</div>' +
+          '</div>';
+      } else if (isDepositPending) {
+        depositContentHtml = '<div style="margin-top:8px;padding:12px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:13px;color:#92400e">' +
+          '<b>⏳ Đã ghi nhận thông báo chuyển cọc của bạn.</b>' +
+          '<div style="font-size:12px;margin-top:2px;color:#b45309">Ban Quản trị DriNet và giáo viên đang đối soát. Trạng thái sẽ được cập nhật ngay sau khi tiền cọc nổi.</div>' +
+          '</div>';
+      } else {
+        depositContentHtml = '<div class="deposit-box">' +
+          '<div class="deposit-qr"><img src="' + qrUrl + '" alt="QR nộp cọc 3tr DriNet"></div>' +
+          '<div class="deposit-info">' +
+            '<table>' +
+              '<tr><td>Số tiền cọc:</td><td><b style="color:#b91c1c;font-size:15px">3.000.000 đ</b></td></tr>' +
+              '<tr><td>Ngân hàng:</td><td>MB Bank (Ngân hàng Quân Đội)</td></tr>' +
+              '<tr><td>Số tài khoản:</td><td><b style="color:var(--navy);font-size:14px">0901234567</b></td></tr>' +
+              '<tr><td>Chủ tài khoản:</td><td>DRINET VIETNAM</td></tr>' +
+              '<tr><td>Nội dung CK:</td><td><b style="color:var(--blue)">COC ' + escapeHtml(cleanPhone) + ' ' + escapeHtml(req.full_name) + '</b></td></tr>' +
+            '</table>' +
+            '<div style="margin-top:10px">' +
+              '<button class="btn btn-sm btn-primary" data-notify-deposit="' + req.id + '" type="button">✓ Tôi đã chuyển khoản cọc 3.000.000đ</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }
+
+      let scheduleContentHtml = '';
+      if (isDepositPaid) {
+        scheduleContentHtml = '<div style="font-size:13.5px;color:var(--navy);margin-top:4px">' +
+          '🎉 <b>Đã kích hoạt bước trao đổi lịch học!</b> Thầy/cô ' + escapeHtml(teacherTitle) + ' sẽ gọi điện hoặc nhắn Zalo cho bạn để thống nhất lịch học buổi 1. Bạn cũng có thể bấm nút Gọi hoặc Nhắn tin Zalo để chốt thời gian sớm nhất.' +
+          '<div style="font-size:12px;color:var(--muted);margin-top:6px"><i>(Tính năng đặt và chốt lịch trực tiếp trên website đang được DriNet nâng cấp và sẽ ra mắt sớm!)</i></div>' +
+          '</div>';
+      } else {
+        scheduleContentHtml = '<div style="font-size:13px;color:var(--muted);margin-top:4px">' +
+          '🔒 Cần hoàn tất bước nộp cọc 3.000.000đ ở Bước 2 để kích hoạt xếp lịch học buổi 1 với giáo viên.' +
+          '</div>';
+      }
+
+      let lessonsListHtml = '';
+      if (logs.length > 0) {
+        lessonsListHtml = '<div class="lesson-log-list">' +
+          logs.map((log) => {
+            const logDate = new Date(log.lesson_date).toLocaleDateString('vi-VN');
+            return '<div class="lesson-log-item">' +
+              '<div>' +
+                '<div class="lesson-log-header">' +
+                  '<span class="lesson-badge">Buổi ' + log.lesson_number + '</span>' +
+                  '<span class="lesson-date">📅 ' + logDate + ' (' + log.duration_hours + ' giờ)</span>' +
+                '</div>' +
+                '<div class="lesson-content-text"><b>Nội dung:</b> ' + escapeHtml(log.content) + '</div>' +
+                (log.teacher_feedback ? '<div class="lesson-feedback-text">💬 <b>Nhận xét của giáo viên:</b> ' + escapeHtml(log.teacher_feedback) + '</div>' : '') +
+              '</div>' +
+            '</div>';
+          }).join('') +
+          '</div>';
+      } else {
+        lessonsListHtml = '<p style="margin:8px 0 0;font-size:13px;color:var(--muted)">' +
+          'Chưa có buổi học thực hành nào được ghi nhận. Sau khi đi học buổi 1, giáo viên sẽ cập nhật nội dung bài học và đánh giá tiến độ của bạn tại đây.' +
+          '</p>';
+      }
+
+      let examContentHtml = '';
+      if (isEligible) {
+        examContentHtml = '<div style="margin-top:8px;padding:14px;background:#ecfdf5;border:2px solid #6ee7b7;border-radius:10px;color:#065f46">' +
+          '<h4 style="margin:0 0 6px;font-size:16px;color:#047857">🎉 CHÚC MỪNG BẠN ĐÃ ĐỦ ĐIỀU KIỆN THI SÁT HẠCH!</h4>' +
+          '<p style="margin:0;font-size:13.5px;line-height:1.5">' +
+            'Giáo viên và hệ thống DriNet xác nhận bạn đã hoàn thành đầy đủ các bài tập sa hình, đường trường và kỹ năng lái xe an toàn. Hãy giữ tâm lý tự tin và đón nhận thông báo lịch thi sát hạch chính thức nhé!' +
+          '</p>' +
+          '</div>';
+      } else if (isGraduated) {
+        examContentHtml = '<div style="margin-top:8px;padding:14px;background:#e0e7ff;border:1px solid #c7d2fe;border-radius:10px;color:#3730a3">' +
+          '<h4 style="margin:0 0 4px;font-size:16px">🎓 ĐÃ TỐT NGHIỆP KHÓA ĐÀO TẠO LÁI XE!</h4>' +
+          '<p style="margin:0;font-size:13px">Bạn đã hoàn thành xuất sắc toàn bộ khóa học cùng DriNet.</p>' +
+          '</div>';
+      } else {
+        examContentHtml = '<p style="margin:4px 0 0;font-size:13px;color:var(--muted)">' +
+          'Giáo viên sẽ đánh giá và xác nhận đủ điều kiện khi bạn hoàn thành đầy đủ các bài sa hình, đường trường và giờ học quy định.' +
+          '</p>';
+      }
+
+      return '<div class="course-progress-card">' +
+        '<div class="course-teacher-header">' +
+          '<div class="course-teacher-info">' +
+            '<div class="course-teacher-avatar">' + escapeHtml((teacherTitle.charAt(0) || 'D').toUpperCase()) + '</div>' +
+            '<div class="course-teacher-details">' +
+              '<h4>' + escapeHtml(teacherTitle) + ' ' + teacherBadge + '</h4>' +
+              '<p>Khóa học: <b>' + escapeHtml(req.license_goal || 'Lái xe') + '</b> · Khu vực: <b>' + escapeHtml(req.preferred_area || 'Gia Lai') + '</b></p>' +
+            '</div>' +
+          '</div>' +
+          '<div>' +
+            '<span class="tag status-' + req.status + '">' + (statusLabels[req.status] || req.status) + '</span>' +
+          '</div>' +
         '</div>' +
-        '<div class="student-history-meta">' +
-          '<span>📍 Khu vực: <b>' + escapeHtml(req.preferred_area || 'Gia Lai') + '</b></span>' +
-          (req.preferred_time ? '<span>⏰ Thời gian: <b>' + escapeHtml(req.preferred_time) + '</b></span>' : '') +
-          '<span>📅 Ngày gửi: <b>' + dateStr + '</b></span>' +
+
+        '<div class="course-stepper">' +
+          // Step 1
+          '<div class="step-item completed">' +
+            '<div class="step-number">✓</div>' +
+            '<div class="step-body">' +
+              '<div class="step-title"><span>Bước 1: Chọn giáo viên & Chốt hồ sơ</span><span class="tag status-confirmed">Đã xong</span></div>' +
+              '<p class="step-desc">Hồ sơ đã được gửi đến thầy/cô ' + escapeHtml(teacherTitle) + ' thành công.</p>' +
+            '</div>' +
+          '</div>' +
+          // Step 2
+          '<div class="step-item ' + (isDepositPaid ? 'completed' : 'active') + '">' +
+            '<div class="step-number">' + (isDepositPaid ? '✓' : '2') + '</div>' +
+            '<div class="step-body">' +
+              '<div class="step-title"><span>Bước 2: Nộp 3.000.000đ tiền cọc</span>' + (isDepositPaid ? '<span class="tag status-approved">Đã nộp cọc</span>' : '<span class="tag status-new">Chờ nộp cọc</span>') + '</div>' +
+              depositContentHtml +
+            '</div>' +
+          '</div>' +
+          // Step 3
+          '<div class="step-item ' + (isDepositPaid ? 'active' : '') + '">' +
+            '<div class="step-number">3</div>' +
+            '<div class="step-body">' +
+              '<div class="step-title"><span>Bước 3: Trao đổi thời gian & Lên lịch học</span></div>' +
+              scheduleContentHtml +
+            '</div>' +
+          '</div>' +
+          // Step 4
+          '<div class="step-item ' + (totalLessons > 0 ? (isEligible ? 'completed' : 'active') : '') + '">' +
+            '<div class="step-number">' + (isEligible ? '✓' : '4') + '</div>' +
+            '<div class="step-body">' +
+              '<div class="step-title"><span>Bước 4: Tiến trình các buổi học thực hành</span><span class="tag" style="background:#e0f2fe;color:#0369a1">Đã học: ' + totalLessons + ' buổi</span></div>' +
+              lessonsListHtml +
+            '</div>' +
+          '</div>' +
+          // Step 5
+          '<div class="step-item ' + (isEligible || isGraduated ? 'completed' : '') + '">' +
+            '<div class="step-number">' + (isEligible || isGraduated ? '✓' : '5') + '</div>' +
+            '<div class="step-body">' +
+              '<div class="step-title"><span>Bước 5: Hoàn thành khóa học & Đủ điều kiện thi sát hạch</span></div>' +
+              examContentHtml +
+            '</div>' +
+          '</div>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -341,6 +504,21 @@ async function loadStudentRequestsHistory(userId) {
     console.error('Lỗi khi tải lịch sử yêu cầu của học viên:', err);
     container.innerHTML = '<p class="admin-message error">Không thể tải danh sách: ' + escapeHtml(err.message) + '</p>';
   }
+
+  container.querySelectorAll('[data-notify-deposit]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const reqId = btn.dataset.notifyDeposit;
+      btn.disabled = true;
+      btn.textContent = 'Đang ghi nhận…';
+      try {
+        await supabase.from('student_requests').update({ deposit_status: 'pending_approval' }).eq('id', reqId);
+        await loadStudentRequestsHistory(user);
+      } catch (err) {
+        alert('Không thể cập nhật: ' + err.message);
+        btn.disabled = false;
+      }
+    });
+  });
 }
 
 export function loginPage() {
@@ -488,3 +666,4 @@ export function bindLoginPage() {
     }
   });
 }
+

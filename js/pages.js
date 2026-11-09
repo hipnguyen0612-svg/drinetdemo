@@ -80,6 +80,7 @@ function studentRegistrationPage() {
   const selectedArea = selectedTeacher?.area || '';
   const teacherOptions = (area) => teachers.filter((teacher) => !area || teacher.area === area).map((teacher) => '<option value="' + escapeHtml(teacher.slug) + '"' + (selectedTeacher?.slug === teacher.slug ? ' selected' : '') + '>' + escapeHtml(teacher.name) + ' · ' + escapeHtml(teacher.area) + '</option>').join('');
 
+  return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">BẮT ĐẦU CÙNG DRINET</span><h1>Đăng ký tư vấn học lái</h1><p>Chỉ mất vài phút để DriNet hiểu nhu cầu và hỗ trợ bạn.</p></div></section><main class="container section"><form id="student-reg-form" class="panel form-card"><h3>Đăng ký tư vấn học lái</h3><div class="notice">&#128274; <b>Quy trình đào tạo minh bạch:</b> Chọn giáo viên &rarr; Chốt hồ sơ &rarr; Nộp 3.000.000đ cọc &rarr; Trao đổi lịch học với giáo viên &rarr; Bắt đầu buổi 1 và theo dõi nhật ký từng buổi dạy trên hệ thống.<br><span style="font-size:12.5px;color:#1e40af;margin-top:4px;display:inline-block">🎁 Hệ thống sẽ tự động cấp tài khoản học viên để bạn theo dõi tiến trình và nhật ký đào tạo.</span></div><div class="form-grid"><div><label>Họ và tên *</label><input name="name" required autocomplete="name" placeholder="Nguyễn Văn A" value="' + escapeHtml(currentUser?.name) + '"></div><div><label>Số điện thoại hoặc Zalo *</label><input name="phone" type="tel" required autocomplete="tel" placeholder="09xxxxxxxx" value="' + escapeHtml(currentUser?.phone) + '"></div><div><label>Email (Nhận tài khoản học viên) *</label><input name="email" type="email" required autocomplete="email" placeholder="hocvien@gmail.com" value="' + escapeHtml(currentUser?.email) + '"></div><div><label>Hạng bằng muốn học *</label><select name="licenseGoal" required><option value="">Chọn hạng bằng</option><option value="Hạng B">Hạng B</option><option value="Hạng C1">Hạng C1</option><option value="Khác">Khác</option></select></div><div><label>Đã có giấy phép học viên? *</label><select name="hasLearnerPermit" required><option value="">Chọn thông tin</option><option value="true">Có</option><option value="false">Chưa</option></select></div><div><label for="registration-area">Khu vực thuận tiện *</label><select id="registration-area" name="area" required><option value="">Chọn khu vực</option>' + areas.map((area) => '<option value="' + escapeHtml(area) + '"' + (area === selectedArea ? ' selected' : '') + '>' + escapeHtml(area) + '</option>').join('') + '</select></div><div><label>Khung giờ học ưa thích</label><select name="preferredTime"><option value="Sáng">Sáng</option><option value="Chiều">Chiều</option><option value="Tối">Tối</option><option value="Cuối tuần">Cuối tuần</option><option value="Linh hoạt">Linh hoạt</option></select></div><div class="full"><label for="registration-teacher">Nguyện vọng giáo viên</label><select id="registration-teacher" name="teacher">' + teacherOptions(selectedArea) + '</select><div id="registration-teacher-hint" class="field-hint" style="font-size:13px;color:var(--muted);margin-top:6px"></div></div><div class="full"><label>Ghi chú thêm về nhu cầu</label><textarea name="notes" rows="3" placeholder="Ví dụ: Chỉ rảnh cuối tuần, cần giáo viên kiên nhẫn, muốn học nhanh…"></textarea></div><div class="full check"><input id="terms-student" type="checkbox" required><label for="terms-student">Tôi đồng ý với <a href="#/dieu-khoan">Điều khoản sử dụng</a> và cho phép liên hệ tư vấn.</label></div></div><button class="btn btn-primary" type="submit">Gửi yêu cầu tư vấn &rarr;</button><div class="form-success" aria-live="polite"></div></form></main>';
   return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">BẮT ĐẦU CÙNG DRINET</span><h1>Đăng ký tư vấn học lái</h1><p>Chỉ mất vài phút để DriNet hiểu nhu cầu và hỗ trợ bạn.</p></div></section><main class="container section"><form id="student-reg-form" class="panel form-card"><h3>Đăng ký tư vấn học lái</h3><div class="notice">&#128274; Bạn có thể chọn giáo viên mong muốn để liên hệ trực tiếp hoặc nhờ DriNet tư vấn điều phối giáo viên phù hợp.</div><div class="form-grid"><div><label>Họ và tên *</label><input name="name" required autocomplete="name" value="' + escapeHtml(currentUser?.name) + '"></div><div><label>Số điện thoại hoặc Zalo *</label><input name="phone" type="tel" required autocomplete="tel" value="' + escapeHtml(currentUser?.phone) + '"></div><div><label>Email</label><input name="email" type="email" autocomplete="email" value="' + escapeHtml(currentUser?.email) + '"></div><div><label>Hạng bằng muốn học *</label><select name="licenseGoal" required><option value="">Chọn hạng bằng</option><option value="Hạng B">Hạng B</option><option value="Hạng C1">Hạng C1</option><option value="Khác">Khác</option></select></div><div><label>Đã có giấy phép học viên? *</label><select name="hasLearnerPermit" required><option value="">Chọn thông tin</option><option value="true">Có</option><option value="false">Chưa</option></select></div><div><label for="registration-area">Khu vực thuận tiện *</label><select id="registration-area" name="area" required><option value="">Chọn khu vực</option>' + areas.map((area) => '<option value="' + escapeHtml(area) + '"' + (area === selectedArea ? ' selected' : '') + '>' + escapeHtml(area) + '</option>').join('') + '</select></div><div><label>Khung giờ học ưa thích</label><select name="preferredTime"><option value="Sáng">Sáng</option><option value="Chiều">Chiều</option><option value="Tối">Tối</option><option value="Cuối tuần">Cuối tuần</option><option value="Linh hoạt">Linh hoạt</option></select></div><div><label for="registration-teacher">Giáo viên mong muốn</label><select id="registration-teacher" name="teacher"><option value="consultation"' + (selectedTeacher ? '' : ' selected') + '>Nhờ DriNet tư vấn</option>' + teacherOptions(selectedArea) + '</select><small id="registration-teacher-hint" style="color:var(--muted);font-size:12px;display:block;margin-top:5px;line-height:1.4"></small></div><div class="full check"><input id="terms" type="checkbox" required><label for="terms">Tôi đã đọc và đồng ý với <a href="#/dieu-khoan" style="color:var(--blue)">Điều khoản sử dụng và Chính sách bảo mật</a> của DriNet. *</label></div><div class="full"><button class="btn btn-primary" type="submit">Gửi yêu cầu tư vấn &rarr;</button></div></div><div class="form-success"></div></form></main>';
 }
 
@@ -126,11 +127,42 @@ export function bindStudentRegistration() {
     const selectedTeacher = teacherSlug && teacherSlug !== 'consultation'
       ? teachers.find((teacher) => teacher.slug === teacherSlug)
       : null;
-    const { data: { session } } = await supabase.auth.getSession();
+    
+    let { data: { session } } = await supabase.auth.getSession();
+    const fullName = String(values.get('name') || '').trim();
+    const phone = String(values.get('phone') || '').trim();
+    const email = String(values.get('email') || '').trim();
+    const cleanPhone = phone.replace(/\D/g, '');
+    const tempPassword = 'DriNet@' + (cleanPhone.slice(-4) || '2025');
+    let isNewAccountCreated = false;
+
+    // Nếu học viên chưa đăng nhập, tự động cấp tài khoản sẵn với mật khẩu tạm thời
+    if (!session && email) {
+      try {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password: tempPassword,
+          options: {
+            data: {
+              full_name: fullName,
+              phone: phone,
+              role: 'student',
+            },
+          },
+        });
+        if (!signUpError && signUpData) {
+          isNewAccountCreated = true;
+          if (signUpData.session) session = signUpData.session;
+        }
+      } catch (authErr) {
+        console.warn('Lưu ý cấp tài khoản:', authErr);
+      }
+    }
+
     const payload = {
-      full_name: String(values.get('name') || '').trim(),
-      phone: String(values.get('phone') || '').trim(),
-      email: String(values.get('email') || '').trim() || null,
+      full_name: fullName,
+      phone: phone,
+      email: email || null,
       license_goal: String(values.get('licenseGoal') || '').trim(),
       has_learner_permit: values.get('hasLearnerPermit') === 'true',
       preferred_area: String(values.get('area') || '').trim(),
@@ -139,6 +171,10 @@ export function bindStudentRegistration() {
       wants_consultation: !selectedTeacher,
       source: 'website',
       student_profile_id: session?.user?.id || null,
+      deposit_status: 'unpaid',
+      deposit_amount: 3000000,
+      learning_status: 'awaiting_deposit',
+      total_lessons_completed: 0,
     };
 
     try {
@@ -152,6 +188,33 @@ export function bindStudentRegistration() {
       } else {
         message.textContent = 'Đã gửi yêu cầu thành công! Ban Quản trị DriNet đã nhận được yêu cầu và sẽ liên hệ tư vấn, điều phối giáo viên phù hợp nhất cho bạn.';
       }
+      
+      const teacherNote = selectedTeacher
+        ? 'Thầy/cô <b>' + escapeHtml(selectedTeacher.name) + '</b> đã nhận được hồ sơ của bạn và sẽ chủ động gọi điện hoặc nhắn tin Zalo hỗ trợ bạn sớm nhất.'
+        : 'Ban Quản trị DriNet đã nhận được yêu cầu và sẽ liên hệ tư vấn, điều phối giáo viên phù hợp nhất cho bạn.';
+
+      const accountHtml = isNewAccountCreated
+        ? '<div class="account-provisioned-card">' +
+            '<h4>🎉 Đăng ký thành công & Đã cấp tài khoản học viên!</h4>' +
+            '<p style="margin:4px 0 10px;font-size:13.5px;color:#166534">' +
+              'Hệ thống DriNet đã cấp sẵn tài khoản để bạn theo dõi hồ sơ, nộp 3.000.000đ cọc và theo dõi nhật ký từng buổi dạy của giáo viên:' +
+            '</p>' +
+            '<div class="account-credentials-grid">' +
+              '<span>📧 Email đăng nhập:</span> <b>' + escapeHtml(email) + '</b>' +
+              '<span>🔑 Mật khẩu tạm thời:</span> <b>' + escapeHtml(tempPassword) + '</b>' +
+            '</div>' +
+            '<p style="margin:8px 0;font-size:12.5px;color:#15803d">' +
+              '💡 <i>Bạn có thể đổi mật khẩu bất kỳ lúc nào trong mục Hồ sơ cá nhân sau khi đăng nhập.</i>' +
+            '</p>' +
+            '<div style="margin-top:12px">' +
+              '<a class="btn btn-primary btn-sm" href="#/dang-nhap">👉 Đăng nhập để theo dõi khóa học &rarr;</a>' +
+            '</div>' +
+          '</div>'
+        : '<p style="margin:8px 0 0;font-weight:600;color:var(--navy)">Bạn đã đăng nhập. Hãy truy cập <a href="#/ho-so" style="color:var(--blue)">Hồ sơ cá nhân</a> để xem tiến trình khóa học và hướng dẫn nộp cọc 3.000.000đ!</p>';
+
+      message.innerHTML = '<div style="margin-bottom:12px;font-size:15px;line-height:1.5">' +
+        '<b>✅ Gửi yêu cầu thành công!</b> ' + teacherNote +
+        '</div>' + accountHtml;
       message.className = 'form-success show';
     } catch (error) {
       message.textContent = error.message || 'Không thể gửi yêu cầu. Vui lòng thử lại.';
@@ -344,3 +407,4 @@ export function about() {
 export function terms() {
   return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">THÔNG TIN PHÁP LÝ</span><h1>Điều khoản & bảo mật</h1><p>Cập nhật lần cuối: tháng 11 năm 2026</p></div></section><main class="container section prose"><h2>Điều khoản sử dụng</h2><ul><li>DriNet là nền tảng kết nối, không trực tiếp thực hiện hoạt động đào tạo lái xe.</li><li>Học phí, lịch học và thỏa thuận đào tạo do giáo viên hoặc trung tâm quyết định.</li><li>Người dùng có trách nhiệm cung cấp thông tin chính xác, đầy đủ khi sử dụng nền tảng.</li><li>Đánh giá phải trung thực, tôn trọng và tuân thủ quy định của DriNet.</li></ul><h2>Chính sách bảo mật</h2><p>DriNet thu thập thông tin liên hệ, nhu cầu học và thông tin hồ sơ cần thiết để kết nối, xác minh và hỗ trợ người dùng. Dữ liệu được sử dụng đúng mục đích, bảo vệ bằng biện pháp phù hợp và lưu giữ trong thời gian cần thiết cho dịch vụ hoặc theo quy định pháp luật.</p><p>Bạn có quyền yêu cầu xem, chỉnh sửa hoặc xóa thông tin cá nhân của mình bằng cách liên hệ DriNet. Tài liệu xác minh của giáo viên/trung tâm chỉ phục vụ quản trị viên kiểm tra, tuyệt đối không hiển thị công khai.</p><h2>Quy định giao dịch</h2><p>DriNet khuyến khích người dùng thực hiện giao dịch thông qua quy trình của nền tảng để nhận được hỗ trợ khi phát sinh khiếu nại. Người dùng nên xác nhận rõ học phí, lịch học và nội dung dịch vụ trước khi bắt đầu.</p></main>';
 }
+

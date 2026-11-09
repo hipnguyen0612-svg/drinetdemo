@@ -368,8 +368,21 @@ async function renderRequestsTab() {
             ? '<span style="background:#fef3c7;color:#b45309;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">🎯 Nhờ DriNet tư vấn</span> <span style="background:#fee2e2;color:#b91c1c;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">⚠️ Chờ điều phối</span>'
             : '<span style="background:#f3e8ff;color:#7e22ce;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">✓ Đã điều phối</span>');
 
+      const isDepositPaid = item.deposit_status === 'paid';
+      const isDepositPending = item.deposit_status === 'pending_approval';
+      const isEligible = item.learning_status === 'eligible_for_exam';
+      const isGraduated = item.learning_status === 'graduated';
+      const depositBadge = isDepositPaid
+        ? '<span style="background:#e6fcf5;color:#0ca678;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700">💰 Đã nộp 3tr cọc</span>'
+        : (isDepositPending
+            ? '<span style="background:#fff9db;color:#f59f00;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700">⏳ Chờ duyệt 3tr cọc</span>'
+            : '<span style="background:#f1f5f9;color:#64748b;padding:2px 7px;border-radius:6px;font-size:11px">Chưa nộp 3tr cọc</span>');
+
       return '<article class="admin-item-card"><div class="admin-item-main"><h3>' +
         escapeHtml(item.full_name) + ' ' + categoryBadge +
+        ' ' + depositBadge +
+        (isEligible ? ' <span style="background:#dcfce7;color:#15803d;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:800">🎓 Đủ điều kiện thi</span>' : '') +
+        (isGraduated ? ' <span style="background:#e0e7ff;color:#4338ca;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:800">✓ Tốt nghiệp</span>' : '') +
         ' <span class="admin-status status-' + item.status + '">' + (requestStatusLabel[item.status] || item.status) + '</span></h3>' +
         '<div class="admin-item-meta"><span>Số điện thoại/Zalo:</span> <b>' + escapeHtml(item.phone) + '</b>' +
         (cleanPhone ? ' <a href="tel:' + cleanPhone + '" style="color:var(--blue);font-weight:700;font-size:12px;margin-left:4px">📞 Gọi</a>' : '') +
@@ -379,10 +392,12 @@ async function renderRequestsTab() {
         '<div class="admin-item-meta"><span>Khu vực thuận tiện:</span> <b>' + escapeHtml(item.preferred_area) + '</b>' +
         (item.preferred_time ? '<span>Thời gian học:</span> <b>' + escapeHtml(item.preferred_time) + '</b>' : '') +
         '<span>Thời gian gửi:</span> <small>' + dateStr + '</small></div>' +
+        (item.total_lessons_completed > 0 ? '<div class="admin-item-meta" style="margin-top:4px"><span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:6px;font-size:11.5px;font-weight:700">🚗 Tiến độ: Đã học ' + item.total_lessons_completed + ' buổi thực hành</span></div>' : '') +
         (item.notes ? '<p class="admin-item-body"><b>Ghi chú nhu cầu:</b> ' + escapeHtml(item.notes) + '</p>' : '') +
         routingHtml +
         (item.admin_note ? '<p style="font-size:12px;color:var(--muted);margin:4px 0">Ghi chú nội bộ: ' + escapeHtml(item.admin_note) + '</p>' : '') +
         '</div><div class="admin-btn-group">' +
+        (!isDepositPaid ? '<button class="admin-btn admin-btn-success" data-admin-confirm-deposit="' + item.id + '" data-name="' + escapeHtml(item.full_name) + '" type="button" style="font-size:11.5px">💰 Xác nhận nhận 3tr cọc</button>' : '') +
         (item.status === 'new' ? '<button class="admin-btn admin-btn-primary" data-req-action="contacted" data-id="' + item.id + '" type="button">Đã liên hệ</button>' : '') +
         (['new', 'contacted', 'matched'].includes(item.status) ? '<button class="admin-btn admin-btn-success" data-req-action="confirmed" data-id="' + item.id + '" type="button">Xác nhận học</button>' : '') +
         (['new', 'contacted', 'matched'].includes(item.status) ? '<button class="admin-btn admin-btn-danger" data-req-action="cancelled" data-id="' + item.id + '" type="button">Hủy yêu cầu</button>' : '') +
@@ -689,6 +704,24 @@ export function bindAdminPage() {
         return;
       }
 
+      const adminDepBtn = target.closest('[data-admin-confirm-deposit]');
+      if (adminDepBtn) {
+        const id = adminDepBtn.dataset.adminConfirmDeposit;
+        const name = adminDepBtn.dataset.name || 'học viên này';
+        if (!confirm('Quản trị viên xác nhận đã nhận 3.000.000đ tiền cọc từ "' + name + '"?')) return;
+        adminDepBtn.disabled = true;
+        const { error } = await supabase.from('student_requests').update({
+          deposit_status: 'paid',
+          deposit_paid_at: new Date().toISOString(),
+          learning_status: 'schedule_pending',
+        }).eq('id', id);
+        if (error) throw error;
+        message.textContent = 'Đã xác nhận 3.000.000đ tiền cọc từ "' + name + '".';
+        message.className = 'admin-message success';
+        await loadCurrentTab();
+        return;
+      }
+
       if (reqBtn) {
         const action = reqBtn.dataset.reqAction;
         const id = reqBtn.dataset.id;
@@ -796,3 +829,4 @@ export function bindAdminPage() {
     }
   });
 }
+
