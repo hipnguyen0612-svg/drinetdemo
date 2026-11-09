@@ -41,7 +41,7 @@ export function teacherDashboardPage() {
           👥 Học viên của tôi <span id="teacher-badge-students" class="admin-badge">…</span>
         </button>
         <button class="admin-tab" data-tab="profile" type="button">
-          📝 Thông tin giảng dạy & Học phí
+          📝 Thông tin giảng dạy
         </button>
         <button class="admin-tab" data-tab="reviews" type="button">
           ⭐ Đánh giá học viên <span id="teacher-badge-reviews" class="admin-badge">…</span>
@@ -191,11 +191,9 @@ function renderHeader(teacher, user) {
         <span class="teacher-stat-sub">${teacher.review_count || 0} lượt đánh giá</span>
       </div>
       <div class="teacher-stat-card">
-        <span class="teacher-stat-label">Học phí niêm yết</span>
-        <span class="teacher-stat-value" style="font-size:19px">
-          ${teacher.price_per_lesson ? Number(teacher.price_per_lesson).toLocaleString('vi-VN') + 'đ' : 'Thỏa thuận'}
-        </span>
-        <span class="teacher-stat-sub">${teacher.price_per_lesson ? 'mỗi buổi học' : 'chưa đặt giá'}</span>
+        <span class="teacher-stat-label">Trạng thái nhận học</span>
+        <span class="teacher-stat-value" style="font-size:19px;color:var(--green)">Đang mở nhận</span>
+        <span class="teacher-stat-sub">Sẵn sàng nhận học viên mới</span>
       </div>
       <div class="teacher-stat-card">
         <span class="teacher-stat-label">Khu vực & Hạng bằng</span>
@@ -307,6 +305,15 @@ async function renderStudentsTab() {
           const canContact = req.status === 'new' || req.status === 'matched';
           const canConfirm = req.status === 'new' || req.status === 'matched' || req.status === 'contacted';
           const canClose = req.status === 'confirmed';
+          const noticeHtml = isDirect
+            ? `<div style="margin:8px 0 10px;padding:9px 12px;background:#f0f9ff;border-left:3px solid var(--blue);border-radius:6px;font-size:12.5px;color:#0369a1">
+                📢 <b>Học viên đã chủ động chọn bạn:</b> Yêu cầu gửi trực tiếp đến bạn mà không cần qua quản trị viên. Hãy bấm <b>Gọi điện</b> hoặc <b>Nhắn Zalo</b> ngay bên dưới để liên hệ tư vấn lịch học cho học viên!
+              </div>`
+            : (isAssigned
+                ? `<div style="margin:8px 0 10px;padding:9px 12px;background:#faf5ff;border-left:3px solid #9333ea;border-radius:6px;font-size:12.5px;color:#7e22ce">
+                    🎯 <b>DriNet điều phối:</b> Học viên đăng ký nhờ DriNet tư vấn và đã được Quản trị viên bàn giao cho bạn. Hãy liên hệ hỗ trợ học viên sớm nhất.
+                  </div>`
+                : '');
 
           return `
             <div class="admin-item-card" data-req-id="${req.id}">
@@ -325,6 +332,7 @@ async function renderStudentsTab() {
                   <span>📅 Ngày gửi: <b>${dateStr}</b></span>
                 </div>
                 ${req.notes ? `<div class="admin-item-body"><b>Ghi chú:</b> ${escapeHtml(req.notes)}</div>` : ''}
+                ${noticeHtml}
                 <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
                   <a class="admin-btn btn-call" href="tel:${escapeHtml(cleanPhone)}">📞 Gọi điện ngay</a>
                   <a class="admin-btn btn-zalo" href="https://zalo.me/${encodeURIComponent(cleanPhone)}" target="_blank" rel="noopener">💬 Nhắn tin Zalo</a>
@@ -408,11 +416,6 @@ function renderProfileTab() {
           <input name="experienceYears" type="number" min="0" max="60" value="${t.experience_years ?? 0}">
         </div>
         <div>
-          <label>Học phí tham khảo (đ/buổi)</label>
-          <input name="pricePerLesson" type="number" min="0" step="10000" value="${t.price_per_lesson ?? ''}" placeholder="Ví dụ: 300000">
-          <small style="color:var(--muted);font-size:11px;display:block;margin-top:3px">Để trống nếu muốn học viên liên hệ thỏa thuận</small>
-        </div>
-        <div>
           <label>Tên trung tâm liên kết (nếu có)</label>
           <input name="centerName" value="${escapeHtml(t.center_name || '')}" placeholder="Ví dụ: Trung tâm Đào tạo Lái xe Gia Lai">
         </div>
@@ -440,7 +443,6 @@ function renderProfileTab() {
     const area = String(values.get('area') || '').trim();
     const rawLicenses = String(values.get('licenses') || '').trim();
     const experienceYears = Number(values.get('experienceYears')) || 0;
-    const rawPrice = values.get('pricePerLesson');
     const centerName = String(values.get('centerName') || '').trim() || null;
     const bio = String(values.get('bio') || '').trim() || null;
 
@@ -453,7 +455,7 @@ function renderProfileTab() {
     }
 
     const licenses = rawLicenses.split(',').map((item) => item.trim()).filter(Boolean);
-    const pricePerLesson = rawPrice ? Number(rawPrice) : null;
+    const pricePerLesson = activeTeacher.price_per_lesson ?? null;
 
     btn.disabled = true;
     btn.textContent = 'Đang lưu…';

@@ -170,17 +170,12 @@ async function renderTeachersTab() {
       ? teacherDocs.map((d) => '<a class="admin-doc-link" href="#" data-view-doc="' + escapeHtml(d.storage_path) + '">📄 Xem chứng chỉ: ' + escapeHtml(d.original_filename) + '</a>').join(' ')
       : '';
 
-    const priceLabel = teacher.price_per_lesson
-      ? Number(teacher.price_per_lesson).toLocaleString('vi-VN') + 'đ/buổi'
-      : 'Chưa cập nhật học phí';
-
     return '<article class="admin-item-card"><div class="admin-item-main"><h3>' +
       escapeHtml(teacher.display_name) +
       ' <span class="admin-status status-' + teacher.status + '">' + (teacherStatusLabel[teacher.status] || teacher.status) + '</span></h3>' +
       '<div class="admin-item-meta"><span>Khu vực:</span> <b>' + escapeHtml(teacher.area) + '</b>' +
       '<span>Hạng bằng:</span> <b>' + escapeHtml((teacher.licenses || []).join(', ')) + '</b>' +
       '<span>Kinh nghiệm:</span> <b>' + teacher.experience_years + ' năm</b>' +
-      '<span>Học phí:</span> <b>' + priceLabel + '</b>' +
       '<span>Đơn vị:</span> <b>' + escapeHtml(teacher.center_name || 'Độc lập') + '</b></div>' +
       '<div class="admin-item-meta"><span>Tài khoản liên kết:</span> <b class="admin-account-email">' + escapeHtml(email) + '</b>' +
       '<span>Đánh giá:</span> <b>★ ' + Number(teacher.rating || 0).toFixed(1) + ' (' + (teacher.review_count || 0) + ' lượt)</b></div>' +
@@ -218,16 +213,32 @@ async function renderRequestsTab() {
   const teacherMap = new Map((teachers || []).map((t) => [t.id, t.display_name + ' (' + t.area + ')']));
   const studentContacts = (contacts || []).filter((c) => !isTeacherSupportMessage(c));
 
-  const leadItems = (requests || []).map((r) => ({ ...r, _itemType: 'request' }));
-  const contactItems = studentContacts.map((c) => ({ ...c, _itemType: 'contact' }));
+  const leadItems = (requests || []).map((r) => {
+    const isDirect = Boolean(r.requested_teacher_id && !r.wants_consultation);
+    const isNeedDispatch = !isDirect && !r.assigned_teacher_id;
+    const isDispatched = !isDirect && Boolean(r.assigned_teacher_id);
+    return {
+      ...r,
+      _itemType: 'request',
+      _category: isDirect ? 'direct' : (isNeedDispatch ? 'need_dispatch' : 'dispatched'),
+    };
+  });
+  const contactItems = studentContacts.map((c) => ({ ...c, _itemType: 'contact', _category: 'message' }));
 
-  const leadsCount = leadItems.length;
+  const needDispatchCount = leadItems.filter((i) => i._category === 'need_dispatch' && i.status === 'new').length;
+  const totalNeedDispatch = leadItems.filter((i) => i._category === 'need_dispatch').length;
+  const directCount = leadItems.filter((i) => i._category === 'direct').length;
+  const dispatchedCount = leadItems.filter((i) => i._category === 'dispatched').length;
   const messagesCount = contactItems.length;
-  const totalCount = leadsCount + messagesCount;
+  const totalCount = leadItems.length + messagesCount;
 
   let itemsToRender = [];
-  if (currentRequestsFilter === 'leads') {
-    itemsToRender = leadItems;
+  if (currentRequestsFilter === 'need_dispatch') {
+    itemsToRender = leadItems.filter((i) => i._category === 'need_dispatch');
+  } else if (currentRequestsFilter === 'direct') {
+    itemsToRender = leadItems.filter((i) => i._category === 'direct');
+  } else if (currentRequestsFilter === 'dispatched') {
+    itemsToRender = leadItems.filter((i) => i._category === 'dispatched');
   } else if (currentRequestsFilter === 'messages') {
     itemsToRender = contactItems;
   } else {
@@ -236,10 +247,20 @@ async function renderRequestsTab() {
 
   const subFilterHtml = `
     <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center">
-      <span style="font-size:13px;font-weight:700;color:var(--muted);margin-right:4px">Lọc theo:</span>
+      <span style="font-size:13px;font-weight:700;color:var(--muted);margin-right:4px">Lọc hồ sơ:</span>
       <button class="btn btn-sm ${currentRequestsFilter === 'all' ? 'btn-primary' : 'btn-light'}" data-req-filter="all" type="button">Tất cả (${totalCount})</button>
-      <button class="btn btn-sm ${currentRequestsFilter === 'leads' ? 'btn-primary' : 'btn-light'}" data-req-filter="leads" type="button">📋 Đăng ký học lái (${leadsCount})</button>
-      <button class="btn btn-sm ${currentRequestsFilter === 'messages' ? 'btn-primary' : 'btn-light'}" data-req-filter="messages" type="button">💬 Tin nhắn học viên (${messagesCount})</button>
+      <button class="btn btn-sm ${currentRequestsFilter === 'need_dispatch' ? 'btn-primary' : 'btn-light'}" data-req-filter="need_dispatch" type="button" style="${needDispatchCount > 0 && currentRequestsFilter !== 'need_dispatch' ? 'background:#fef3c7;color:#b45309;border-color:#fde68a;font-weight:700' : ''}">
+        🎯 Cần DriNet điều phối (${totalNeedDispatch}${needDispatchCount > 0 ? ` - ${needDispatchCount} mới` : ''})
+      </button>
+      <button class="btn btn-sm ${currentRequestsFilter === 'direct' ? 'btn-primary' : 'btn-light'}" data-req-filter="direct" type="button">
+        ⭐ Học viên tự chọn GV (${directCount})
+      </button>
+      <button class="btn btn-sm ${currentRequestsFilter === 'dispatched' ? 'btn-primary' : 'btn-light'}" data-req-filter="dispatched" type="button">
+        ✓ Đã điều phối (${dispatchedCount})
+      </button>
+      <button class="btn btn-sm ${currentRequestsFilter === 'messages' ? 'btn-primary' : 'btn-light'}" data-req-filter="messages" type="button">
+        💬 Tin nhắn liên hệ (${messagesCount})
+      </button>
     </div>
   `;
 
@@ -252,6 +273,9 @@ async function renderRequestsTab() {
     const dateStr = new Date(item.created_at).toLocaleString('vi-VN');
 
     if (item._itemType === 'request') {
+      const isDirect = item._category === 'direct';
+      const isNeedDispatch = item._category === 'need_dispatch';
+      const isDispatched = item._category === 'dispatched';
       const requestedTeacherName = item.requested_teacher_id
         ? teacherMap.get(item.requested_teacher_id) || 'Giáo viên đã chọn'
         : 'Học viên nhờ DriNet tư vấn';
@@ -260,29 +284,92 @@ async function renderRequestsTab() {
         : null;
       const cleanPhone = String(item.phone || '').replace(/\D/g, '');
 
-      const dispatchHtml = `
-        <div style="margin-top:12px;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <span style="font-size:12.5px;font-weight:700;color:var(--navy);display:inline-flex;align-items:center;gap:5px">
-            🎯 Điều phối giáo viên:
-          </span>
-          <select id="assign-select-${item.id}" style="padding:6px 10px;border-radius:7px;border:1px solid #cbd5e1;font-size:13px;min-width:210px;max-width:320px;background:#fff">
-            <option value="">-- Chưa điều phối / Hủy điều phối --</option>
-            ${(teachers || []).map((t) => {
-              const isSelected = item.assigned_teacher_id === t.id;
-              const statusNote = t.status === 'approved' ? '' : ' [Chưa duyệt]';
-              return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(t.display_name)} (${escapeHtml(t.area)})${statusNote}</option>`;
-            }).join('')}
-          </select>
-          <button class="btn btn-sm btn-primary" data-dispatch-req="${item.id}" type="button" style="padding:6px 14px;font-size:12.5px">
-            Lưu điều phối
-          </button>
-          ${assignedTeacherName ? `<span style="font-size:12px;font-weight:700;color:var(--green)">✓ Đang chuyển cho: ${escapeHtml(assignedTeacherName)}</span>` : '<span style="font-size:12px;color:var(--muted)">Chưa bàn giao giáo viên</span>'}
-        </div>
-      `;
+      let routingHtml = '';
+      if (isDirect) {
+        routingHtml = `
+          <div style="margin-top:12px;padding:12px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;font-size:13px;color:#166534">
+            <div style="font-weight:700;display:flex;align-items:center;gap:6px">
+              <span>⭐ Học viên chọn thẳng: <b>${escapeHtml(requestedTeacherName)}</b></span>
+            </div>
+            <div style="font-size:12px;margin-top:3px;color:#15803d">
+              Hồ sơ đã chuyển thẳng đến Dashboard của giáo viên để giáo viên chủ động gọi/Zalo liên hệ (không cần Quản trị viên điều phối).
+            </div>
+            <details style="margin-top:8px;font-size:12px">
+              <summary style="cursor:pointer;color:var(--muted);font-weight:600">🔄 Điều phối lại sang giáo viên khác (nếu cần)</summary>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
+                <select id="assign-select-${item.id}" style="padding:6px 10px;border-radius:7px;border:1px solid #cbd5e1;font-size:12.5px;min-width:210px;max-width:320px;background:#fff">
+                  <option value="">-- Giữ nguyên giáo viên học viên chọn --</option>
+                  ${(teachers || []).map((t) => {
+                    const isSelected = item.assigned_teacher_id === t.id;
+                    const statusNote = t.status === 'approved' ? '' : ' [Chưa duyệt]';
+                    return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(t.display_name)} (${escapeHtml(t.area)})${statusNote}</option>`;
+                  }).join('')}
+                </select>
+                <button class="btn btn-sm btn-primary" data-dispatch-req="${item.id}" type="button" style="padding:6px 14px;font-size:12px">
+                  Lưu thay đổi
+                </button>
+              </div>
+            </details>
+          </div>
+        `;
+      } else if (isNeedDispatch) {
+        routingHtml = `
+          <div style="margin-top:12px;padding:12px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:9px">
+            <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:8px">
+              ⚠️ <b>Cần Quản trị viên điều phối:</b> Học viên chưa chọn giáo viên cụ thể. Vui lòng chọn giáo viên phù hợp tại khu vực "${escapeHtml(item.preferred_area || 'Gia Lai')}" để bàn giao:
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <select id="assign-select-${item.id}" style="padding:6px 10px;border-radius:7px;border:1px solid #cbd5e1;font-size:13px;min-width:220px;max-width:340px;background:#fff">
+                <option value="">-- Chọn giáo viên điều phối --</option>
+                ${(teachers || []).map((t) => {
+                  const isSelected = item.assigned_teacher_id === t.id;
+                  const statusNote = t.status === 'approved' ? '' : ' [Chưa duyệt]';
+                  return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(t.display_name)} (${escapeHtml(t.area)})${statusNote}</option>`;
+                }).join('')}
+              </select>
+              <button class="btn btn-sm btn-primary" data-dispatch-req="${item.id}" type="button" style="padding:6px 14px;font-size:12.5px">
+                🚀 Lưu điều phối
+              </button>
+            </div>
+          </div>
+        `;
+      } else {
+        routingHtml = `
+          <div style="margin-top:12px;padding:12px 14px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:9px;font-size:13px;color:#6b21a8">
+            <div style="font-weight:700">
+              🎯 Đã điều phối cho giáo viên: <b>${escapeHtml(assignedTeacherName)}</b>
+            </div>
+            <div style="font-size:12px;margin-top:3px;color:#7e22ce">
+              Giáo viên đã nhận được hồ sơ trên Dashboard để chủ động liên hệ học viên.
+            </div>
+            <details style="margin-top:8px;font-size:12px">
+              <summary style="cursor:pointer;color:var(--muted);font-weight:600">🔄 Thay đổi giáo viên điều phối</summary>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
+                <select id="assign-select-${item.id}" style="padding:6px 10px;border-radius:7px;border:1px solid #cbd5e1;font-size:12.5px;min-width:210px;max-width:320px;background:#fff">
+                  <option value="">-- Hủy điều phối (đưa về chờ) --</option>
+                  ${(teachers || []).map((t) => {
+                    const isSelected = item.assigned_teacher_id === t.id;
+                    const statusNote = t.status === 'approved' ? '' : ' [Chưa duyệt]';
+                    return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(t.display_name)} (${escapeHtml(t.area)})${statusNote}</option>`;
+                  }).join('')}
+                </select>
+                <button class="btn btn-sm btn-primary" data-dispatch-req="${item.id}" type="button" style="padding:6px 14px;font-size:12px">
+                  Cập nhật
+                </button>
+              </div>
+            </details>
+          </div>
+        `;
+      }
+
+      const categoryBadge = isDirect
+        ? '<span style="background:#e0f2fe;color:#0369a1;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">⭐ Học viên tự chọn GV</span>'
+        : (isNeedDispatch
+            ? '<span style="background:#fef3c7;color:#b45309;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">🎯 Nhờ DriNet tư vấn</span> <span style="background:#fee2e2;color:#b91c1c;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">⚠️ Chờ điều phối</span>'
+            : '<span style="background:#f3e8ff;color:#7e22ce;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">✓ Đã điều phối</span>');
 
       return '<article class="admin-item-card"><div class="admin-item-main"><h3>' +
-        escapeHtml(item.full_name) +
-        ' <span style="background:#e0f2fe;color:#0369a1;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700">📋 Đăng ký học lái</span>' +
+        escapeHtml(item.full_name) + ' ' + categoryBadge +
         ' <span class="admin-status status-' + item.status + '">' + (requestStatusLabel[item.status] || item.status) + '</span></h3>' +
         '<div class="admin-item-meta"><span>Số điện thoại/Zalo:</span> <b>' + escapeHtml(item.phone) + '</b>' +
         (cleanPhone ? ' <a href="tel:' + cleanPhone + '" style="color:var(--blue);font-weight:700;font-size:12px;margin-left:4px">📞 Gọi</a>' : '') +
@@ -290,11 +377,10 @@ async function renderRequestsTab() {
         '<span>Hạng bằng:</span> <b>' + escapeHtml(item.license_goal) + '</b>' +
         '<span>Giấy phép học viên:</span> <b>' + (item.has_learner_permit ? 'Đã có' : 'Chưa có') + '</b></div>' +
         '<div class="admin-item-meta"><span>Khu vực thuận tiện:</span> <b>' + escapeHtml(item.preferred_area) + '</b>' +
-        '<span>Nguyện vọng:</span> <b>' + escapeHtml(requestedTeacherName) + '</b>' +
-        '<span>Nguyện vọng:</span> <b>' + escapeHtml(teacherName) + '</b>' +
+        (item.preferred_time ? '<span>Thời gian học:</span> <b>' + escapeHtml(item.preferred_time) + '</b>' : '') +
         '<span>Thời gian gửi:</span> <small>' + dateStr + '</small></div>' +
         (item.notes ? '<p class="admin-item-body"><b>Ghi chú nhu cầu:</b> ' + escapeHtml(item.notes) + '</p>' : '') +
-        dispatchHtml +
+        routingHtml +
         (item.admin_note ? '<p style="font-size:12px;color:var(--muted);margin:4px 0">Ghi chú nội bộ: ' + escapeHtml(item.admin_note) + '</p>' : '') +
         '</div><div class="admin-btn-group">' +
         (item.status === 'new' ? '<button class="admin-btn admin-btn-primary" data-req-action="contacted" data-id="' + item.id + '" type="button">Đã liên hệ</button>' : '') +
@@ -428,7 +514,7 @@ function renderEditForm(teacher) {
   const panel = document.querySelector('#admin-edit-panel');
   if (!panel) return;
   panel.hidden = false;
-  panel.innerHTML = '<div class="admin-list-heading"><div><h2>Chỉnh sửa hồ sơ giáo viên</h2><p>Cập nhật thông tin hiển thị công khai. Trạng thái hồ sơ và đánh giá không bị thay đổi.</p></div><button id="close-admin-edit" class="btn btn-light" type="button">Đóng</button></div><form id="admin-edit-form" class="admin-edit-form" data-teacher-id="' + teacher.id + '"><div class="form-grid"><div><label>Họ tên hoặc tên trung tâm</label><input name="displayName" required value="' + escapeHtml(teacher.display_name) + '"></div><div><label>Khu vực hoạt động</label><input name="area" required value="' + escapeHtml(teacher.area) + '"></div><div><label>Hạng bằng giảng dạy</label><input name="licenses" required placeholder="Ví dụ: Hạng B, C1" value="' + escapeHtml((teacher.licenses || []).join(', ')) + '"></div><div><label>Số năm kinh nghiệm</label><input name="experienceYears" type="number" min="0" max="60" required value="' + (teacher.experience_years ?? 0) + '"></div><div><label>Học phí tham khảo (đ/buổi)</label><input name="price" type="number" min="0" value="' + (teacher.price_per_lesson ?? '') + '"></div><div><label>Tên trung tâm (nếu có)</label><input name="centerName" value="' + escapeHtml(teacher.center_name || '') + '"></div><div class="full"><label>Giới thiệu</label><textarea name="bio" rows="4" placeholder="Giới thiệu ngắn về giáo viên hoặc trung tâm">' + escapeHtml(teacher.bio || '') + '</textarea></div></div><div class="admin-form-actions"><button class="btn btn-primary" type="submit">Lưu thay đổi</button><button id="cancel-admin-edit" class="btn btn-light" type="button">Hủy</button></div><p id="admin-edit-message" class="admin-message" aria-live="polite"></p></form>';
+  panel.innerHTML = '<div class="admin-list-heading"><div><h2>Chỉnh sửa hồ sơ giáo viên</h2><p>Cập nhật thông tin hiển thị công khai. Trạng thái hồ sơ và đánh giá không bị thay đổi.</p></div><button id="close-admin-edit" class="btn btn-light" type="button">Đóng</button></div><form id="admin-edit-form" class="admin-edit-form" data-teacher-id="' + teacher.id + '"><div class="form-grid"><div><label>Họ tên hoặc tên trung tâm</label><input name="displayName" required value="' + escapeHtml(teacher.display_name) + '"></div><div><label>Khu vực hoạt động</label><input name="area" required value="' + escapeHtml(teacher.area) + '"></div><div><label>Hạng bằng giảng dạy</label><input name="licenses" required placeholder="Ví dụ: Hạng B, C1" value="' + escapeHtml((teacher.licenses || []).join(', ')) + '"></div><div><label>Số năm kinh nghiệm</label><input name="experienceYears" type="number" min="0" max="60" required value="' + (teacher.experience_years ?? 0) + '"></div><div><label>Tên trung tâm (nếu có)</label><input name="centerName" value="' + escapeHtml(teacher.center_name || '') + '"></div><div class="full"><label>Giới thiệu</label><textarea name="bio" rows="4" placeholder="Giới thiệu ngắn về giáo viên hoặc trung tâm">' + escapeHtml(teacher.bio || '') + '</textarea></div></div><div class="admin-form-actions"><button class="btn btn-primary" type="submit">Lưu thay đổi</button><button id="cancel-admin-edit" class="btn btn-light" type="button">Hủy</button></div><p id="admin-edit-message" class="admin-message" aria-live="polite"></p></form>';
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -523,6 +609,11 @@ export function bindAdminPage() {
           if (curReq && curReq.status === 'new') {
             updatePayload.status = 'matched';
           }
+        } else {
+          const { data: curReq } = await supabase.from('student_requests').select('status').eq('id', id).single();
+          if (curReq && curReq.status === 'matched') {
+            updatePayload.status = 'new';
+          }
         }
 
         const { error } = await supabase.from('student_requests').update(updatePayload).eq('id', id);
@@ -564,7 +655,7 @@ export function bindAdminPage() {
 
         await supabase.from('contact_messages').update({ status: 'resolved' }).eq('id', id);
 
-        currentRequestsFilter = 'leads';
+        currentRequestsFilter = 'need_dispatch';
         message.textContent = `Đã tạo hồ sơ học lái từ tin nhắn của "${contact.full_name}". Bây giờ bạn có thể chọn giáo viên để điều phối ngay!`;
         message.className = 'admin-message success';
         await loadCurrentTab();
