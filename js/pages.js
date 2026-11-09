@@ -12,54 +12,25 @@ export function bindTeacherFilters() {
   const applyButton = document.querySelector('#apply-teacher-filters');
   const resultsCount = document.querySelector('#teacher-results-count');
   const resultsGrid = document.querySelector('#teacher-results');
-  const availTabs = document.querySelectorAll('#teacher-avail-tabs .avail-tab');
 
   if (!areaFilter || !licenseFilter || !reviewFilter || !resultsCount || !resultsGrid) return;
 
-  let currentAvail = 'all';
-
   const applyFilters = () => {
-    const all = getTeachers();
-    const filteredTeachers = all.filter((teacher) => {
+    const filteredTeachers = getTeachers().filter((teacher) => {
       const matchesArea = areaFilter.value === 'all' || teacher.area === areaFilter.value;
       const matchesLicense = licenseFilter.value === 'all' || (teacher.licenses || '').includes(licenseFilter.value);
       const matchesReviews = reviewFilter.value === 'all' || teacher.reviews > 0;
-      const matchesAvail =
-        currentAvail === 'all' ? true :
-        currentAvail === 'active' ? (teacher.is_accepting_students !== false) :
-        (teacher.is_accepting_students === false);
-      return matchesArea && matchesLicense && matchesReviews && matchesAvail;
+      return matchesArea && matchesLicense && matchesReviews;
     });
 
-    const sortedTeachers = [...filteredTeachers].sort((a, b) => {
-      const aActive = a.is_accepting_students !== false ? 1 : 0;
-      const bActive = b.is_accepting_students !== false ? 1 : 0;
-      if (bActive !== aActive) return bActive - aActive;
-      return Number(b.rating || 0) - Number(a.rating || 0);
-    });
-
-    const total = sortedTeachers.length;
-    let desc = '';
-    if (currentAvail === 'active') desc = ' đang sẵn sàng nhận học viên';
-    else if (currentAvail === 'paused') desc = ' đang tạm ngừng nhận dạy';
-    else desc = ' (Ưu tiên giáo viên sẵn sàng nhận học viên)';
-
+    const total = filteredTeachers.length;
     resultsCount.innerHTML = total
-      ? 'Hiển thị <b>' + total + ' giáo viên' + desc + '</b> phù hợp'
+      ? 'Hiển thị <b>' + total + ' giáo viên</b> phù hợp'
       : 'Không tìm thấy giáo viên phù hợp với bộ lọc đã chọn.';
     resultsGrid.innerHTML = total
-      ? sortedTeachers.map(teacherCard).join('')
-      : '<div class="empty-results"><p style="margin:0 0 6px;font-weight:700;color:var(--navy)">Không tìm thấy giáo viên phù hợp</p><p style="margin:0;font-size:13.5px;color:var(--muted)">Hãy thử chuyển sang tab "Tất cả hồ sơ" hoặc chọn lại khu vực/hạng bằng.</p></div>';
+      ? filteredTeachers.map(teacherCard).join('')
+      : '<div class="empty-results">Hãy thử chọn khu vực hoặc hạng bằng khác để xem thêm giáo viên.</div>';
   };
-
-  availTabs.forEach((tab) => {
-    tab.addEventListener('click', () => {
-      availTabs.forEach((t) => t.classList.remove('active'));
-      tab.classList.add('active');
-      currentAvail = tab.dataset.avail;
-      applyFilters();
-    });
-  });
 
   applyButton?.addEventListener('click', applyFilters);
   [areaFilter, licenseFilter, reviewFilter].forEach((filter) => filter.addEventListener('change', applyFilters));
@@ -67,48 +38,7 @@ export function bindTeacherFilters() {
 
 export function home() {
   const teachers = getTeachers();
-  const activeCount = teachers.filter((t) => t.is_accepting_students !== false).length;
-  const pausedCount = teachers.filter((t) => t.is_accepting_students === false).length;
-
-  const sortedTeachers = [...teachers].sort((a, b) => {
-    const aActive = a.is_accepting_students !== false ? 1 : 0;
-    const bActive = b.is_accepting_students !== false ? 1 : 0;
-    if (bActive !== aActive) return bActive - aActive;
-    return Number(b.rating || 0) - Number(a.rating || 0);
-  });
-  const featuredTeachers = sortedTeachers.slice(0, 6);
-
-  const teacherSectionHtml =
-    '<section class="section container">' +
-      '<div class="teacher-row" style="align-items:flex-end;margin-bottom:24px">' +
-        '<div class="section-head" style="margin-bottom:0">' +
-          '<span class="kicker">GIÁO VIÊN NỔI BẬT</span>' +
-          '<h2>Đã xác minh, sẵn sàng đồng hành</h2>' +
-          '<p style="color:var(--muted);font-size:14px;margin-top:6px">' +
-            'Ưu tiên giáo viên đang sẵn sàng nhận học viên mới tại Gia Lai. ' +
-            '<span style="display:inline-flex;align-items:center;gap:6px;margin-left:4px;font-weight:600">' +
-              '<span style="color:#15803d;background:#dcfce7;padding:2px 8px;border-radius:12px;font-size:12px">🟢 ' + activeCount + ' đang nhận học viên</span>' +
-              (pausedCount ? '<span style="color:#b91c1c;background:#fee2e2;padding:2px 8px;border-radius:12px;font-size:12px">🔴 ' + pausedCount + ' tạm ngừng nhận</span>' : '') +
-            '</span>' +
-          '</p>' +
-        '</div>' +
-        '<a class="btn btn-light" href="#/giao-vien" style="white-space:nowrap">Xem tất cả hồ sơ &rarr;</a>' +
-      '</div>' +
-      '<div class="teachers">' +
-        (featuredTeachers.length
-          ? featuredTeachers.map(teacherCard).join('')
-          : '<p class="login-intro">Đang tải danh sách giáo viên…</p>') +
-      '</div>' +
-    '</section>' +
-    '<section class="cta-band">' +
-      '<div class="container">' +
-        '<h2>Sẵn sàng bắt đầu hành trình học lái?</h2>' +
-        '<p>Tìm người dạy phù hợp với lịch trình và nhu cầu của riêng bạn.</p>' +
-        '<a class="btn btn-primary" href="#/giao-vien">Tìm giáo viên ngay &rarr;</a>' +
-      '</div>' +
-    '</section>';
-
-  return '<section class="hero"><div class="container"><span class="eyebrow"><i></i> NỀN TẢNG KẾT NỐI TẠI GIA LAI</span><h1>Tìm giáo viên dạy lái minh bạch tại Gia Lai</h1><p>Xem hồ sơ, chọn giáo viên phù hợp và đọc đánh giá từ học viên trước khi chọn.</p><div class="actions"><a class="btn btn-primary" href="#/giao-vien">Tìm giáo viên</a><a class="btn btn-light" href="#/dang-ky-hoc">Đăng ký tư vấn miễn phí</a></div><div class="trustline"><span><b>100%</b>Hồ sơ được kiểm tra</span><span><b>Minh bạch</b>Thông tin giáo viên</span><span><b>An tâm</b>Đánh giá kiểm duyệt</span></div></div></section><section class="section container"><div class="section-head"><span class="kicker">VÌ SAO LÀ DRINET</span><h2>Chủ động chọn người đồng hành trên hành trình học lái</h2><p>Thông tin rõ ràng hơn để bạn đưa ra lựa chọn phù hợp hơn.</p></div><div class="grid3"><div class="benefit"><div class="icon">&#128203;</div><h3>Minh bạch thông tin</h3><p>Tìm hiểu kinh nghiệm, hạng bằng và phong cách dạy trước khi lựa chọn.</p></div><div class="benefit"><div class="icon">&#10003;</div><h3>Hồ sơ được kiểm tra</h3><p>Thông tin giáo viên được xác minh trước khi hiển thị trên nền tảng.</p></div><div class="benefit"><div class="icon">&#9733;</div><h3>Đánh giá từ học viên thật</h3><p>Chỉ hiển thị đánh giá đã được kiểm duyệt và đối chiếu.</p></div></div></section><section class="section process"><div class="container"><div class="section-head"><span class="kicker">CÁCH DRINET HOẠT ĐỘNG</span><h2>Đơn giản để bắt đầu, rõ ràng trong từng bước</h2></div><div class="steps"><div class="step"><span class="step-no">01</span><h3>Tìm kiếm</h3><p>Lọc theo khu vực, hạng bằng và đánh giá.</p></div><div class="step"><span class="step-no">02</span><h3>Xem hồ sơ</h3><p>Khám phá kinh nghiệm, chuyên môn, lịch trống.</p></div><div class="step"><span class="step-no">03</span><h3>Đăng ký tư vấn</h3><p>Gửi nhu cầu học chỉ trong vài phút.</p></div><div class="step"><span class="step-no">04</span><h3>Kết nối phù hợp</h3><p>DriNet hỗ trợ kết nối đúng giáo viên, sẵn sàng đồng hành.</p></div></div></div></section>' + teacherSectionHtml;
+  return '<section class="hero"><div class="container"><span class="eyebrow"><i></i> NỀN TẢNG KẾT NỐI TẠI GIA LAI</span><h1>Tìm giáo viên dạy lái minh bạch tại Gia Lai</h1><p>Xem hồ sơ, chọn giáo viên phù hợp và đọc đánh giá từ học viên trước khi chọn.</p><div class="actions"><a class="btn btn-primary" href="#/giao-vien">Tìm giáo viên</a><a class="btn btn-light" href="#/dang-ky-hoc">Đăng ký tư vấn miễn phí</a></div><div class="trustline"><span><b>100%</b>Hồ sơ được kiểm tra</span><span><b>Minh bạch</b>Thông tin giáo viên</span><span><b>An tâm</b>Đánh giá kiểm duyệt</span></div></div></section><section class="section container"><div class="section-head"><span class="kicker">VÌ SAO LÀ DRINET</span><h2>Chủ động chọn người đồng hành trên hành trình học lái</h2><p>Thông tin rõ ràng hơn để bạn đưa ra lựa chọn phù hợp hơn.</p></div><div class="grid3"><div class="benefit"><div class="icon">&#128203;</div><h3>Minh bạch thông tin</h3><p>Tìm hiểu kinh nghiệm, hạng bằng và phong cách dạy trước khi lựa chọn.</p></div><div class="benefit"><div class="icon">&#10003;</div><h3>Hồ sơ được kiểm tra</h3><p>Thông tin giáo viên được xác minh trước khi hiển thị trên nền tảng.</p></div><div class="benefit"><div class="icon">&#9733;</div><h3>Đánh giá từ học viên thật</h3><p>Chỉ hiển thị đánh giá đã được kiểm duyệt và đối chiếu.</p></div></div></section><section class="section process"><div class="container"><div class="section-head"><span class="kicker">CÁCH DRINET HOẠT ĐỘNG</span><h2>Đơn giản để bắt đầu, rõ ràng trong từng bước</h2></div><div class="steps"><div class="step"><span class="step-no">01</span><h3>Tìm kiếm</h3><p>Lọc theo khu vực, hạng bằng và đánh giá.</p></div><div class="step"><span class="step-no">02</span><h3>Xem hồ sơ</h3><p>Khám phá kinh nghiệm, chuyên môn, lịch trống.</p></div><div class="step"><span class="step-no">03</span><h3>Đăng ký tư vấn</h3><p>Gửi nhu cầu học chỉ trong vài phút.</p></div><div class="step"><span class="step-no">04</span><h3>Kết nối phù hợp</h3><p>DriNet hỗ trợ kết nối đúng giáo viên, sẵn sàng đồng hành.</p></div></div></div></section>';
 }
 
 export function teacherList() {
@@ -116,33 +46,16 @@ export function teacherList() {
   const areas = [...new Set(teachers.map((t) => t.area).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
   const allLicenses = [...new Set(teachers.flatMap((t) => (t.licenses || '').split(',').map((item) => item.trim())).filter(Boolean))].sort();
 
-  const activeCount = teachers.filter((t) => t.is_accepting_students !== false).length;
-  const pausedCount = teachers.filter((t) => t.is_accepting_students === false).length;
-  const totalCount = teachers.length;
-
-  const sortedTeachers = [...teachers].sort((a, b) => {
-    const aActive = a.is_accepting_students !== false ? 1 : 0;
-    const bActive = b.is_accepting_students !== false ? 1 : 0;
-    if (bActive !== aActive) return bActive - aActive;
-    return Number(b.rating || 0) - Number(a.rating || 0);
-  });
-  const initialList = sortedTeachers;
-
   return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">KHÁM PHÁ GIÁO VIÊN</span><h1>Tìm người dạy phù hợp với bạn</h1><p>Lọc và so sánh các giáo viên đã được DriNet xác minh tại Gia Lai.</p></div></section><main class="container section">' +
-    '<div class="availability-tabs" id="teacher-avail-tabs">' +
-      '<button type="button" class="avail-tab active" data-avail="all">Tất cả hồ sơ (' + totalCount + ')</button>' +
-      '<button type="button" class="avail-tab" data-avail="active">🟢 Đang nhận học viên (' + activeCount + ')</button>' +
-      '<button type="button" class="avail-tab" data-avail="paused">🔴 Tạm ngừng nhận (' + pausedCount + ')</button>' +
-    '</div>' +
     '<div class="filters">' +
       '<div class="filter-group"><label>Khu vực</label><select id="filter-area"><option value="all">Tất cả khu vực</option>' + areas.map((area) => '<option value="' + escapeHtml(area) + '">' + escapeHtml(area) + '</option>').join('') + '</select></div>' +
       '<div class="filter-group"><label>Hạng bằng</label><select id="filter-license"><option value="all">Tất cả hạng bằng</option>' + allLicenses.map((lic) => '<option value="' + escapeHtml(lic) + '">' + escapeHtml(lic) + '</option>').join('') + '</select></div>' +
       '<div class="filter-group"><label>Đánh giá</label><select id="filter-review"><option value="all">Tất cả hồ sơ</option><option value="has-reviews">Có đánh giá</option></select></div>' +
       '<button id="apply-teacher-filters" class="btn btn-primary" type="button">Lọc kết quả</button>' +
     '</div>' +
-    '<div class="notice">&#8505; DriNet ưu tiên hiển thị các giáo viên <b>sẵn sàng nhận học viên mới</b> để bạn trao đổi và sắp xếp lịch học nhanh nhất.</div>' +
-    '<div class="teacher-row"><p id="teacher-results-count" style="font-size:14px;color:var(--muted)">Hiển thị <b>' + initialList.length + ' giáo viên (Ưu tiên giáo viên sẵn sàng nhận học viên)</b></p></div>' +
-    '<div id="teacher-results" class="teachers">' + (initialList.length ? initialList.map(teacherCard).join('') : '<div class="empty-results">Chưa có giáo viên nào.</div>') + '</div></main>';
+    '<div class="notice">&#8505; Chỉ các hồ sơ giáo viên đã qua kiểm tra và xác minh mới được hiển thị công khai trên nền tảng.</div>' +
+    '<div class="teacher-row"><p id="teacher-results-count" style="font-size:14px;color:var(--muted)">Hiển thị <b>' + teachers.length + ' giáo viên</b> phù hợp</p></div>' +
+    '<div id="teacher-results" class="teachers">' + (teachers.length ? teachers.map(teacherCard).join('') : '<div class="empty-results">Chưa có giáo viên nào được phê duyệt hiển thị.</div>') + '</div></main>';
 }
 
 export function profile(t) {
@@ -151,29 +64,22 @@ export function profile(t) {
   }
 
   const isPaused = !t.is_accepting_students;
-  const statusTag = isPaused
-    ? '<span class="tag tag-paused">🔴 Tạm ngừng nhận dạy</span>'
-    : '<span class="tag tag-active">🟢 Đang sẵn sàng nhận học viên</span>';
+  const statusTag = '<span class="tag">&#10003; Đã xác minh hồ sơ</span>';
 
   const pausedAlertHtml = isPaused ? `
     <div class="alert-paused" style="border-left:4px solid #ef4444;background:#fef2f2">
       <span style="font-size:26px">⏸️</span>
       <div>
-        <b style="font-size:15.5px;color:#991b1b">Giáo viên hiện đang TẠM NGỪNG nhận học viên mới:</b>
+        <b style="font-size:15.5px;color:#991b1b">Giáo viên hiện đang tạm ngừng nhận học viên mới:</b>
         <p style="margin:4px 0 0;font-size:13.5px;color:#7f1d1d;line-height:1.5">
           Thầy/cô <b>${escapeHtml(t.name)}</b> hiện đang tập trung đào tạo học viên khóa hiện tại hoặc tạm nghỉ${t.pause_reason ? ` (Lý do: <i>${escapeHtml(t.pause_reason)}</i>)` : ''}.
-          <br>DriNet tạm đóng chức năng nhận tư vấn trực tiếp với thầy/cô. Bạn có thể nhờ Ban Quản trị DriNet chọn giáo viên khác tại <b>${escapeHtml(t.area)}</b> hoặc tham khảo gợi ý giáo viên sẵn sàng bên dưới.
+          <br>Bạn vẫn có thể gửi thông tin để Ban Quản trị DriNet lưu nguyện vọng và hỗ trợ sắp xếp hoặc tư vấn giáo viên phù hợp tại <b>${escapeHtml(t.area)}</b>.
         </p>
       </div>
     </div>
   ` : '';
 
-  const ctaBtnHtml = isPaused
-    ? `<div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;align-items:center">
-         <button class="btn btn-light" disabled style="opacity:0.65;cursor:not-allowed;background:#f1f5f9;border-color:#cbd5e1;color:#64748b">🔴 Tạm ngừng nhận học viên</button>
-         <a class="btn btn-primary" href="#/dang-ky-hoc?area=${encodeURIComponent(t.area)}">⚡ Nhờ DriNet chọn giáo viên khác tại ${escapeHtml(t.area)} &rarr;</a>
-       </div>`
-    : `<a class="btn btn-primary" href="#/dang-ky-hoc?teacher=${encodeURIComponent(t.slug)}" style="margin-top:18px">Yêu cầu tư vấn với giáo viên này &rarr;</a>`;
+  const ctaBtnHtml = `<a class="btn btn-primary" href="#/dang-ky-hoc?teacher=${encodeURIComponent(t.slug)}" style="margin-top:18px">Yêu cầu tư vấn với giáo viên này &rarr;</a>`;
 
   const scheduleHtml = isPaused
     ? `<div class="panel">
@@ -182,7 +88,7 @@ export function profile(t) {
            <div style="font-size:28px;margin-bottom:8px">⏸️</div>
            <b style="color:var(--navy);display:block;margin-bottom:4px">Đang tạm ngưng nhận lịch học mới</b>
            <p style="margin:0;font-size:13px;color:var(--muted);line-height:1.5">
-             Thầy/cô đang tạm ngưng xếp lịch cho học viên mới${t.pause_reason ? ` (${escapeHtml(t.pause_reason)})` : ''}. Lịch thực hành sẽ được mở lại sau khi kết thúc đợt học hiện tại.
+             Thầy/cô đang tạm ngưng xếp lịch cho học viên mới${t.pause_reason ? ` (${escapeHtml(t.pause_reason)})` : ''}.
            </p>
          </div>
        </div>`
@@ -196,29 +102,6 @@ export function profile(t) {
          </div>
        </div>`;
 
-  const allTeachers = getTeachers();
-  const recommendedTeachers = isPaused
-    ? allTeachers.filter((other) => other.id !== t.id && other.is_accepting_students !== false && other.area === t.area).slice(0, 3)
-    : [];
-
-  const recommendationsHtml = recommendedTeachers.length ? `
-    <div class="panel" style="margin-top:24px;background:#f0fdf4;border:1px solid #bbf7d0">
-      <h3 style="color:#166534;margin:0 0 12px;font-size:15.5px">💡 Gợi ý giáo viên sẵn sàng nhận học viên tại ${escapeHtml(t.area)}:</h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:12px">
-        ${recommendedTeachers.map((rec) => `
-          <div style="background:#fff;border:1px solid #dcfce7;border-radius:10px;padding:12px;display:flex;align-items:center;gap:12px">
-            <img src="${escapeHtml(rec.img)}" alt="${escapeHtml(rec.name)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid #86efac">
-            <div style="flex:1;min-width:0">
-              <b style="color:var(--navy);font-size:14px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(rec.name)}</b>
-              <span style="font-size:12px;color:var(--muted)">★ ${rec.rating} · ${escapeHtml(rec.licenses)}</span>
-            </div>
-            <a class="btn btn-primary btn-sm" href="#/dang-ky-hoc?teacher=${encodeURIComponent(rec.slug)}" style="padding:6px 10px;font-size:12px">Đăng ký &rarr;</a>
-          </div>
-        `).join('')}
-      </div>
-    </div>
-  ` : '';
-
   return '<section class="page-hero"><div class="container"><a href="#/giao-vien" style="font-size:13px;color:#b9dcff">&larr; Quay lại danh sách giáo viên</a><h1>Hồ sơ giáo viên</h1></div></section><main class="container section">' +
     pausedAlertHtml +
     '<div class="profile"><aside class="profile-image"><img src="' + escapeHtml(t.img) + '" alt="' + escapeHtml(t.name) + '"></aside><div>' +
@@ -226,7 +109,6 @@ export function profile(t) {
     '<h1>' + escapeHtml(t.name) + '</h1><p style="color:var(--muted)">' + escapeHtml(t.bio) + '</p><div class="info-grid"><div class="info-item"><b>Kinh nghiệm</b>' + escapeHtml(t.exp) + '</div><div class="info-item"><b>Hạng giảng dạy</b>' + escapeHtml(t.licenses) + '</div><div class="info-item"><b>Khu vực hoạt động</b>' + escapeHtml(t.area) + '</div><div class="info-item"><b>Trung tâm liên kết</b>' + escapeHtml(t.center) + '</div></div>' +
     ctaBtnHtml +
     '</div></div>' +
-    recommendationsHtml +
     '<div class="grid3" style="margin-top:40px;grid-template-columns:1fr 1fr">' +
     scheduleHtml +
     '<div class="panel"><h3>Đánh giá học viên <span class="rating">&#9733; ' + escapeHtml(t.rating) + ' · ' + escapeHtml(t.reviews) + ' lượt đánh giá</span></h3><div id="teacher-profile-reviews" class="reviews" data-teacher-id="' + escapeHtml(t.id) + '"><div class="drinet-loading-state" style="padding:20px;min-height:100px"><div class="drinet-spinner" style="width:28px;height:28px"></div><p class="drinet-loading-text">Đang tải đánh giá…</p></div></div></div></div></main>';
@@ -278,28 +160,14 @@ function studentRegistrationPage() {
 
   const teacherOptions = (area) => {
     const list = teachers.filter((teacher) => !area || teacher.area === area);
-    const activeList = list.filter((t) => t.is_accepting_students !== false);
-    const pausedList = list.filter((t) => t.is_accepting_students === false);
-
     let html = '<option value="consultation"' + (!selectedTeacher ? ' selected' : '') + '>🎯 Nhờ DriNet tư vấn & điều phối giáo viên phù hợp nhất</option>';
-
-    if (activeList.length) {
-      html += '<optgroup label="🟢 Giáo viên sẵn sàng nhận học viên">';
-      html += activeList.map((t) => {
-        const isSelected = selectedTeacher?.slug === t.slug;
-        return '<option value="' + escapeHtml(t.slug) + '"' + (isSelected ? ' selected' : '') + '>' + escapeHtml(t.name) + ' · ' + escapeHtml(t.area) + ' (' + escapeHtml(t.licenses) + ')</option>';
-      }).join('');
-      html += '</optgroup>';
-    }
-
-    if (pausedList.length) {
-      html += '<optgroup label="🔴 Tạm ngừng nhận học viên (Không khả dụng)">';
-      html += pausedList.map((t) => {
-        return '<option value="' + escapeHtml(t.slug) + '" disabled style="color:#94a3b8">[Tạm ngừng nhận] ' + escapeHtml(t.name) + ' · ' + escapeHtml(t.area) + (t.pause_reason ? ' (' + escapeHtml(t.pause_reason) + ')' : '') + '</option>';
-      }).join('');
-      html += '</optgroup>';
-    }
-
+    html += list.map((teacher) => {
+      const isPaused = !teacher.is_accepting_students;
+      const prefix = isPaused ? '[Tạm ngừng nhận] ' : '';
+      const disabledAttr = isPaused ? ' disabled style="color:#94a3b8"' : '';
+      const isSelected = selectedTeacher?.slug === teacher.slug;
+      return '<option value="' + escapeHtml(teacher.slug) + '"' + (isSelected ? ' selected' : '') + disabledAttr + '>' + prefix + escapeHtml(teacher.name) + ' · ' + escapeHtml(teacher.area) + '</option>';
+    }).join('');
     return html;
   };
 
@@ -319,26 +187,13 @@ export function bindStudentRegistration() {
   const renderTeacherOptions = () => {
     const selected = teacherSelect.value;
     const matched = teachers.filter((teacher) => !areaSelect.value || teacher.area === areaSelect.value);
-    const activeMatched = matched.filter((t) => t.is_accepting_students !== false);
-    const pausedMatched = matched.filter((t) => t.is_accepting_students === false);
-
-    let html = '<option value="consultation">🎯 Nhờ DriNet tư vấn & điều phối giáo viên phù hợp nhất</option>';
-
-    if (activeMatched.length) {
-      html += '<optgroup label="🟢 Giáo viên sẵn sàng nhận học viên">';
-      html += activeMatched.map((t) => {
-        return '<option value="' + escapeHtml(t.slug) + '">' + escapeHtml(t.name) + ' · ' + escapeHtml(t.area) + ' (' + escapeHtml(t.licenses) + ')</option>';
+    let html = '<option value="consultation">🎯 Nhờ DriNet tư vấn & điều phối giáo viên phù hợp nhất</option>' +
+      matched.map((t) => {
+        const isPaused = !t.is_accepting_students;
+        const prefix = isPaused ? '[Tạm ngừng nhận] ' : '';
+        const disabledAttr = isPaused ? ' disabled style="color:#94a3b8"' : '';
+        return '<option value="' + escapeHtml(t.slug) + '"' + disabledAttr + '>' + prefix + escapeHtml(t.name) + ' · ' + escapeHtml(t.area) + '</option>';
       }).join('');
-      html += '</optgroup>';
-    }
-
-    if (pausedMatched.length) {
-      html += '<optgroup label="🔴 Tạm ngừng nhận học viên (Không khả dụng)">';
-      html += pausedMatched.map((t) => {
-        return '<option value="' + escapeHtml(t.slug) + '" disabled style="color:#94a3b8">[Tạm ngừng nhận] ' + escapeHtml(t.name) + ' · ' + escapeHtml(t.area) + (t.pause_reason ? ' (' + escapeHtml(t.pause_reason) + ')' : '') + '</option>';
-      }).join('');
-      html += '</optgroup>';
-    }
 
     teacherSelect.innerHTML = html;
     if ([...teacherSelect.options].some((opt) => opt.value === selected && !opt.disabled)) {

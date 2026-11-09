@@ -44,7 +44,7 @@ async function render() {
   const rawRoute = location.hash.slice(1) || '/';
   const [path] = rawRoute.split('?');
 
-  if (path === '/' || path === '/giao-vien' || path.startsWith('/giao-vien/')) {
+  if (path === '/' || path === '/giao-vien' || path.startsWith('/giao-vien/') || path === '/dang-ky-hoc') {
     try {
       await loadTeachers();
     } catch (error) {
