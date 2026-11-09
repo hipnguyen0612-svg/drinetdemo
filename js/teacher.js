@@ -394,7 +394,7 @@ async function renderStudentsTab() {
       <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div>
           <h3 style="margin:0;color:var(--navy)">Học viên đã liên hệ (${total})</h3>
-          <p style="margin:2px 0 0;font-size:13px;color:var(--muted)">Nhấp nút Gọi hoặc Zalo để chủ động kết nối nhanh với học viên.</p>
+          <p style="margin:2px 0 0;font-size:13px;color:var(--muted)">Quản lý yêu cầu, tiếp nhận học viên sau khi cọc và theo dõi tiến độ đào tạo.</p>
         </div>
         <p id="student-action-msg" class="admin-message" style="margin:0" aria-live="polite"></p>
       </div>
@@ -409,19 +409,6 @@ async function renderStudentsTab() {
             ? '<span style="background:#f3e8ff;color:#7e22ce;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700;margin-left:4px">🎯 DriNet điều phối</span>'
             : (isDirect ? '<span style="background:#e0f2fe;color:#0369a1;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700;margin-left:4px">⭐ Học viên chọn bạn</span>' : '');
 
-          const canContact = req.status === 'new' || req.status === 'matched';
-          const canConfirm = req.status === 'new' || req.status === 'matched' || req.status === 'contacted';
-          const canClose = req.status === 'confirmed';
-          const noticeHtml = isDirect
-            ? `<div style="margin:8px 0 10px;padding:9px 12px;background:#f0f9ff;border-left:3px solid var(--blue);border-radius:6px;font-size:12.5px;color:#0369a1">
-                📢 <b>Học viên đã chủ động chọn bạn:</b> Yêu cầu gửi trực tiếp đến bạn mà không cần qua quản trị viên. Hãy bấm <b>Gọi điện</b> hoặc <b>Nhắn Zalo</b> ngay bên dưới để liên hệ tư vấn lịch học cho học viên!
-              </div>`
-            : (isAssigned
-                ? `<div style="margin:8px 0 10px;padding:9px 12px;background:#faf5ff;border-left:3px solid #9333ea;border-radius:6px;font-size:12.5px;color:#7e22ce">
-                    🎯 <b>DriNet điều phối:</b> Học viên đăng ký nhờ DriNet tư vấn và đã được Quản trị viên bàn giao cho bạn. Hãy liên hệ hỗ trợ học viên sớm nhất.
-                  </div>`
-                : '');
-
           const logs = lessonLogsMap.get(req.id) || [];
           const totalLessons = req.total_lessons_completed || logs.length;
           const isDepositPaid = req.deposit_status === 'paid';
@@ -430,6 +417,28 @@ async function renderStudentsTab() {
           const isGraduated = req.learning_status === 'graduated';
           const isTeacherAccepted = req.teacher_accepted === true;
           const isContactUnlocked = isDepositPaid && isTeacherAccepted;
+
+          const canContact = req.status === 'new' || req.status === 'matched';
+          const canConfirm = req.status === 'new' || req.status === 'matched' || req.status === 'contacted';
+          const canClose = req.status === 'confirmed';
+
+          const noticeHtml = isDirect
+            ? `<div style="margin:8px 0 10px;padding:9px 12px;background:#f0f9ff;border-left:3px solid var(--blue);border-radius:6px;font-size:12.5px;color:#0369a1">
+                📢 <b>Học viên đã chủ động chọn bạn:</b> Yêu cầu gửi trực tiếp đến bạn. ${
+                  isContactUnlocked
+                    ? 'Hãy bấm <b>Gọi điện</b> hoặc <b>Nhắn Zalo</b> ngay bên dưới để liên hệ tư vấn lịch học!'
+                    : 'Sau khi Ban Quản trị xác nhận cọc 3.000.000đ, bạn có thể bấm <b>"Tiếp nhận học viên"</b> để mở khóa SĐT & Zalo.'
+                }
+              </div>`
+            : (isAssigned
+                ? `<div style="margin:8px 0 10px;padding:9px 12px;background:#faf5ff;border-left:3px solid #9333ea;border-radius:6px;font-size:12.5px;color:#7e22ce">
+                    🎯 <b>DriNet điều phối:</b> Học viên đăng ký qua hệ thống và đã được Quản trị viên phân bổ cho bạn. ${
+                      isContactUnlocked
+                        ? 'Hãy liên hệ học viên sớm nhất qua SĐT hoặc Zalo.'
+                        : 'Sau khi có xác nhận cọc 3.000.000đ, bạn có thể bấm <b>"Tiếp nhận học viên"</b> để nhận lớp.'
+                    }
+                  </div>`
+                : '');
 
           const phoneDisplay = isContactUnlocked ? escapeHtml(req.phone || '') : '<span style="color:#d97706;font-weight:700">🔒 0987*** (Mở sau khi có cọc & nhận lớp)</span>';
           const emailDisplay = isContactUnlocked ? escapeHtml(req.email || '') : '<span style="color:#d97706;font-weight:700">🔒 Đã bảo mật</span>';
@@ -462,17 +471,27 @@ async function renderStudentsTab() {
                       Nhằm đảm bảo quy trình cọc qua DriNet và quyền lợi đôi bên, hệ thống sẽ mở khóa SĐT và Zalo khi học viên đã nộp 3.000.000đ cọc và thầy/cô bấm "Tiếp nhận học viên".
                     </p>
                     ${!isDepositPaid ? `
-                      <div style="font-size:12px;color:#92400e;display:flex;align-items:center;gap:6px">
-                        <span>⏳ <b>Trạng thái cọc:</b> Học viên chưa nộp 3.000.000đ cọc (Ban Quản trị DriNet đang đôn đốc và theo dõi).</span>
+                      <div style="background:#fffbeb;border:1px solid #fde68a;padding:12px 14px;border-radius:8px;margin-top:8px">
+                        <div style="font-size:12.5px;color:#92400e;margin-bottom:8px;line-height:1.5">
+                          ⏳ <b>Trạng thái cọc:</b> Học viên chưa hoàn tất nộp 3.000.000đ cọc (Ban Quản trị DriNet đang đôn đốc và theo dõi).
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                          <button class="btn btn-sm" disabled style="background:#f1f5f9;color:#94a3b8;border:1px solid #cbd5e1;padding:6px 14px;font-size:12px;cursor:not-allowed;font-weight:700" title="Nút tiếp nhận sẽ sáng lên ngay sau khi Ban Quản trị DriNet xác nhận tiền cọc của học viên">
+                            🔒 Tiếp nhận học viên (Chờ xác nhận cọc 3tr)
+                          </button>
+                          <span style="font-size:11.5px;color:#64748b">← Nút sẽ tự động mở sau khi Admin xác nhận cọc</span>
+                        </div>
                       </div>
                     ` : `
-                      <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:10px 14px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-                        <span style="color:#15803d;font-weight:700;font-size:12.5px">💰 Học viên đã nộp đủ 3.000.000đ cọc! Thầy/cô vui lòng bấm tiếp nhận để mở khóa liên hệ:</span>
+                      <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:12px 14px;border-radius:8px;margin-top:8px">
+                        <div style="color:#15803d;font-weight:700;font-size:13px;margin-bottom:8px">
+                          💰 Học viên đã nộp đủ 3.000.000đ cọc! Thầy/cô vui lòng bấm tiếp nhận để mở khóa thông tin liên hệ:
+                        </div>
                         <div style="display:flex;gap:8px;flex-wrap:wrap">
-                          <button class="btn btn-sm btn-primary" data-accept-student="${req.id}" data-name="${escapeHtml(req.full_name)}" type="button" style="background:#16a34a;border-color:#16a34a;padding:5px 12px;font-size:12px">
+                          <button class="btn btn-sm btn-primary" data-accept-student="${req.id}" data-name="${escapeHtml(req.full_name)}" type="button" style="background:#16a34a;border-color:#16a34a;padding:7px 16px;font-size:13px;font-weight:700">
                             🤝 Tiếp nhận học viên ngay
                           </button>
-                          <button class="btn btn-sm btn-light" data-decline-student="${req.id}" data-name="${escapeHtml(req.full_name)}" type="button" style="color:#dc2626;padding:5px 10px;font-size:12px">
+                          <button class="btn btn-sm btn-light" data-decline-student="${req.id}" data-name="${escapeHtml(req.full_name)}" type="button" style="color:#dc2626;padding:7px 12px;font-size:12px">
                             ❌ Báo bận / Không nhận
                           </button>
                         </div>
@@ -523,11 +542,13 @@ async function renderStudentsTab() {
                 ` : ''}
                 </div>
               </div>
-              <div class="admin-btn-group">
-                ${canContact ? `<button class="admin-btn admin-btn-primary" data-teacher-action="contacted" data-id="${req.id}" type="button">Đã liên hệ</button>` : ''}
-                ${canConfirm ? `<button class="admin-btn admin-btn-success" data-teacher-action="confirmed" data-id="${req.id}" type="button">Xác nhận học</button>` : ''}
-                ${canClose ? `<button class="admin-btn admin-btn-success" data-teacher-action="closed" data-id="${req.id}" type="button">✓ Học xong</button>` : ''}
-              </div>
+              ${isContactUnlocked && (canContact || canConfirm || canClose) ? `
+                <div class="admin-btn-group">
+                  ${canContact ? `<button class="admin-btn admin-btn-primary" data-teacher-action="contacted" data-id="${req.id}" type="button">Đã liên hệ</button>` : ''}
+                  ${canConfirm ? `<button class="admin-btn admin-btn-success" data-teacher-action="confirmed" data-id="${req.id}" type="button">Xác nhận học</button>` : ''}
+                  ${canClose ? `<button class="admin-btn admin-btn-success" data-teacher-action="closed" data-id="${req.id}" type="button">✓ Học xong</button>` : ''}
+                </div>
+              ` : ''}
             </div>
           `;
         }).join('')}
