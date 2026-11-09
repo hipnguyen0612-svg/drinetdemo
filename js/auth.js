@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { teacherDashboardPage, bindTeacherDashboard } from './teacher.js';
+import { showToast } from './dialog.js';
 
 const SESSION_KEY = 'drinet-current-user';
 
@@ -512,9 +513,10 @@ async function loadStudentRequestsHistory(user) {
       btn.textContent = 'Đang ghi nhận…';
       try {
         await supabase.from('student_requests').update({ deposit_status: 'pending_approval' }).eq('id', reqId);
+        showToast('Đã thông báo đã chuyển cọc tới Ban Quản trị DriNet!', 'success');
         await loadStudentRequestsHistory(user);
       } catch (err) {
-        alert('Không thể cập nhật: ' + err.message);
+        showToast('Không thể cập nhật: ' + err.message, 'error');
         btn.disabled = false;
       }
     });

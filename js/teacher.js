@@ -1,6 +1,7 @@
 import { supabase } from './supabase.js';
 import { getCurrentUser, signOutFromSupabase, initialiseAuth } from './auth.js';
 import { openTeacherSupportModal } from './components.js';
+import { showConfirm, showPrompt, showAlert, showToast } from './dialog.js';
 import { escapeHtml } from './utils.js';
 
 const renderSpinner = (text = 'Đang tải dữ liệu, vui lòng chờ…') =>
@@ -235,7 +236,16 @@ function renderHeader(teacher, user) {
     const btn = document.querySelector('#btn-toggle-availability');
     btn.disabled = true;
     if (isAccepting) {
-      const reason = prompt('Nhập lý do tạm ngừng nhận học viên (ví dụ: Đã đủ học viên khóa này, nghỉ phép...):', teacher.pause_reason || 'Đã đủ học viên khóa này');
+      const reason = await showPrompt({
+        title: 'Tạm ngừng nhận học viên mới',
+        message: 'Nhập lý do tạm ngừng nhận học viên mới (thông tin này sẽ hiển thị để học viên nắm rõ):',
+        defaultValue: teacher.pause_reason || 'Đã đủ học viên khóa này',
+        placeholder: 'Ví dụ: Đã đủ học viên khóa này, nghỉ phép, kín lịch...',
+        confirmText: 'Tạm ngừng nhận',
+        confirmType: 'warning',
+        icon: '⏸️',
+        required: true,
+      });
       if (reason === null) {
         btn.disabled = false;
         return;
@@ -245,12 +255,20 @@ function renderHeader(teacher, user) {
         activeTeacher.is_accepting_students = false;
         activeTeacher.pause_reason = reason.trim();
         renderHeader(activeTeacher, getCurrentUser());
+        showToast('Đã chuyển sang trạng thái tạm ngừng nhận học viên', 'warning');
       } catch (err) {
-        alert('Lỗi cập nhật: ' + err.message);
+        showToast('Lỗi cập nhật: ' + err.message, 'error');
         btn.disabled = false;
       }
     } else {
-      if (!confirm('Bạn có muốn mở nhận học viên mới trở lại trên DriNet?')) {
+      const ok = await showConfirm({
+        title: 'Mở nhận học viên mới',
+        message: 'Hồ sơ của bạn sẽ chuyển sang trạng thái "Sẵn sàng nhận học viên" và tiếp tục nhận các yêu cầu tư vấn mới từ học viên trên DriNet.',
+        confirmText: 'Mở nhận học viên ngay',
+        confirmType: 'success',
+        icon: '🟢',
+      });
+      if (!ok) {
         btn.disabled = false;
         return;
       }
@@ -259,8 +277,9 @@ function renderHeader(teacher, user) {
         activeTeacher.is_accepting_students = true;
         activeTeacher.pause_reason = null;
         renderHeader(activeTeacher, getCurrentUser());
+        showToast('Đã mở nhận học viên mới trên DriNet', 'success');
       } catch (err) {
-        alert('Lỗi cập nhật: ' + err.message);
+        showToast('Lỗi cập nhật: ' + err.message, 'error');
         btn.disabled = false;
       }
     }
@@ -545,7 +564,14 @@ async function renderStudentsTab() {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.acceptStudent;
         const name = btn.dataset.name || 'học viên này';
-        if (!confirm(`Xác nhận tiếp nhận học viên "${name}" vào danh sách đào tạo? Hệ thống sẽ mở khóa số điện thoại và Zalo để bạn liên hệ.`)) return;
+        const ok = await showConfirm({
+          title: 'Tiếp nhận học viên đào tạo',
+          message: `Xác nhận tiếp nhận học viên "${name}" vào danh sách đào tạo của bạn?\\n\\nHệ thống sẽ mở khóa số điện thoại và liên kết Zalo để bạn liên hệ và sắp xếp lịch học.`,
+          confirmText: 'Tiếp nhận học viên',
+          confirmType: 'success',
+          icon: '🤝',
+        });
+        if (!ok) return;
         btn.disabled = true;
         try {
           const { error: accErr } = await supabase.rpc('accept_student_request', { p_request_id: id });
@@ -555,9 +581,10 @@ async function renderStudentsTab() {
             msg.textContent = `Đã tiếp nhận học viên "${name}". Thông tin liên hệ đã được mở khóa!`;
             msg.className = 'admin-message success';
           }
+          showToast(`Đã tiếp nhận "${name}"! Thông tin liên hệ đã được mở khóa.`, 'success');
           await renderStudentsTab();
         } catch (err) {
-          alert('Lỗi tiếp nhận học viên: ' + err.message);
+          showToast('Lỗi tiếp nhận học viên: ' + err.message, 'error');
           btn.disabled = false;
         }
       });
@@ -568,7 +595,16 @@ async function renderStudentsTab() {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.declineStudent;
         const name = btn.dataset.name || 'học viên này';
-        const reason = prompt(`Nhập lý do bạn không thể nhận học viên "${name}" (Hệ thống sẽ chuyển lại Ban Quản trị DriNet để điều phối giáo viên khác):`, 'Lịch đào tạo đã kín trong tuần này');
+        const reason = await showPrompt({
+          title: 'Báo bận / Không thể nhận học viên',
+          message: `Nhập lý do bạn không thể nhận học viên "${name}" (Hệ thống sẽ chuyển lại Ban Quản trị DriNet để điều phối giáo viên khác):`,
+          defaultValue: 'Lịch đào tạo đã kín trong tuần này',
+          placeholder: 'Ví dụ: Lịch đào tạo đã kín, khu vực quá xa...',
+          confirmText: 'Chuyển về DriNet',
+          confirmType: 'danger',
+          icon: '❌',
+          required: true,
+        });
         if (reason === null) return;
         btn.disabled = true;
         try {
@@ -582,9 +618,10 @@ async function renderStudentsTab() {
             msg.textContent = `Đã chuyển trả yêu cầu của "${name}" về Ban Quản trị DriNet để điều phối giáo viên khác.`;
             msg.className = 'admin-message success';
           }
+          showToast(`Đã chuyển yêu cầu của "${name}" về Ban Quản trị DriNet.`, 'info');
           await renderStudentsTab();
         } catch (err) {
-          alert('Không thể thực hiện: ' + err.message);
+          showToast('Không thể thực hiện: ' + err.message, 'error');
           btn.disabled = false;
         }
       });
@@ -595,7 +632,14 @@ async function renderStudentsTab() {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.markEligible;
         const name = btn.dataset.name || 'học viên này';
-        if (!confirm(`Xác nhận học viên "${name}" đã hoàn thành đầy đủ bài học và ĐỦ ĐIỀU KIỆN THI SÁT HẠCH LÁI XE?`)) return;
+        const ok = await showConfirm({
+          title: 'Đủ điều kiện thi sát hạch',
+          message: `Xác nhận học viên "${name}" đã hoàn thành đầy đủ các bài thực hành và ĐỦ ĐIỀU KIỆN DỰ THI SÁT HẠCH LÁI XE?`,
+          confirmText: 'Xác nhận đủ điều kiện',
+          confirmType: 'success',
+          icon: '🎓',
+        });
+        if (!ok) return;
         btn.disabled = true;
         try {
           const { error: elErr } = await supabase
@@ -612,9 +656,10 @@ async function renderStudentsTab() {
             msg.textContent = `Đã xác nhận học viên "${name}" đủ điều kiện dự thi sát hạch!`;
             msg.className = 'admin-message success';
           }
+          showToast(`Đã xác nhận học viên "${name}" đủ điều kiện dự thi sát hạch!`, 'success');
           await renderStudentsTab();
         } catch (err) {
-          alert('Không thể cập nhật: ' + err.message);
+          showToast('Không thể cập nhật: ' + err.message, 'error');
           btn.disabled = false;
         }
       });
@@ -755,9 +800,10 @@ function openAddLessonModal(reqId, studentName, nextNum) {
         .eq('id', reqId);
 
       closeModal();
+      showToast(`Đã lưu buổi học số ${nextNum} thành công!`, 'success');
       await renderStudentsTab();
     } catch (err) {
-      alert('Không thể lưu buổi dạy: ' + err.message);
+      showToast('Không thể lưu buổi dạy: ' + err.message, 'error');
       saveBtn.disabled = false;
       saveBtn.textContent = 'Lưu buổi học';
     }

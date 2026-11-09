@@ -2,6 +2,7 @@ import { getTeachers } from './data.js';
 import { teacherCard } from './components.js';
 import { getCurrentUser } from './auth.js';
 import { escapeHtml, slugify } from './utils.js';
+import { showAlert, showToast } from './dialog.js';
 import { supabase } from './supabase.js';
 
 export function bindTeacherFilters() {
@@ -291,7 +292,12 @@ export function bindTeacherApplication() {
     const submitBtn = form.querySelector('button[type="submit"]');
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      alert('Vui lòng đăng nhập tài khoản trước khi gửi hồ sơ giáo viên.');
+      await showAlert({
+        title: 'Yêu cầu đăng nhập',
+        message: 'Vui lòng đăng nhập tài khoản trước khi gửi hồ sơ giáo viên.',
+        confirmText: 'Đăng nhập ngay',
+        icon: '🔐',
+      });
       location.hash = '#/dang-nhap';
       return;
     }

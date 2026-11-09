@@ -147,3 +147,45 @@
 .contact-locked-box{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 16px;font-size:13px;color:#92400e}
 .tag-paused{background:#fee2e2!important;color:#b91c1c!important;font-weight:700!important}
 .alert-paused{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin-bottom:20px;color:#92400e;display:flex;align-items:flex-start;gap:12px}
+
+/* Custom In-Web Dialogs (Confirm, Prompt, Alert) */
+.custom-dialog-backdrop{position:fixed;inset:0;background:rgba(8,43,89,0.68);backdrop-filter:blur(6px);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;animation:dialogFadeIn .2s ease forwards}
+.custom-dialog-backdrop.dialog-leaving{animation:dialogFadeOut .18s ease forwards}
+.custom-dialog-card{background:#fff;border-radius:18px;box-shadow:0 24px 60px -10px rgba(8,43,89,0.32),0 8px 24px -4px rgba(8,43,89,0.12);width:100%;max-width:460px;padding:26px 26px 22px;position:relative;text-align:left;animation:dialogScaleIn .24s cubic-bezier(0.16,1,0.3,1) forwards;border:1px solid rgba(226,232,240,0.85);box-sizing:border-box}
+.custom-dialog-backdrop.dialog-leaving .custom-dialog-card{animation:dialogScaleOut .18s ease forwards}
+@keyframes dialogFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes dialogFadeOut{from{opacity:1}to{opacity:0}}
+@keyframes dialogScaleIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes dialogScaleOut{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(8px) scale(.96)}}
+
+.custom-dialog-icon-badge{width:48px;height:48px;border-radius:14px;display:inline-grid;place-items:center;font-size:24px;margin-bottom:14px}
+.custom-dialog-icon-badge.badge-primary{background:#f0f9ff;border:1px solid #bae6fd}
+.custom-dialog-icon-badge.badge-success{background:#f0fdf4;border:1px solid #bbf7d0}
+.custom-dialog-icon-badge.badge-danger{background:#fef2f2;border:1px solid #fecaca}
+.custom-dialog-icon-badge.badge-warning{background:#fffbeb;border:1px solid #fde68a}
+.custom-dialog-icon-badge.badge-info{background:#f0f9ff;border:1px solid #bae6fd}
+.custom-dialog-icon-badge.badge-error{background:#fef2f2;border:1px solid #fecaca}
+
+.custom-dialog-title{margin:0 0 8px;font-size:18px;font-weight:800;color:var(--navy);line-height:1.35}
+.custom-dialog-message{margin:0 0 18px;font-size:13.5px;color:#475569;line-height:1.6}
+.custom-dialog-input{width:100%;padding:10px 14px;border:1.5px solid #cbd5e1;border-radius:9px;font-size:13.5px;font-family:inherit;color:var(--navy);margin-bottom:18px;box-sizing:border-box;transition:all .15s ease;background:#fff}
+.custom-dialog-input:focus{border-color:#0284c7;outline:none;box-shadow:0 0 0 3px rgba(2,132,199,0.15)}
+.custom-dialog-actions{display:flex;justify-content:flex-end;gap:10px;align-items:center}
+
+/* Custom In-Web Floating Toasts */
+.custom-toast-container{position:fixed;top:24px;right:24px;z-index:10001;display:flex;flex-direction:column;gap:10px;pointer-events:none;max-width:420px;width:calc(100% - 32px)}
+.custom-toast{pointer-events:auto;background:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 10px 30px rgba(8,43,89,0.15),0 2px 8px rgba(8,43,89,0.06);border:1px solid var(--line);border-left:5px solid #0284c7;display:flex;align-items:center;gap:12px;animation:toastSlideIn .25s cubic-bezier(0.16,1,0.3,1) forwards;transition:all .2s ease;box-sizing:border-box}
+.custom-toast.toast-success{border-left-color:#16a34a}
+.custom-toast.toast-error{border-left-color:#dc2626}
+.custom-toast.toast-warning{border-left-color:#d97706}
+.custom-toast.toast-info{border-left-color:#0284c7}
+.custom-toast.toast-leaving{opacity:0;transform:translateX(30px)}
+@keyframes toastSlideIn{from{opacity:0;transform:translateY(-12px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+.custom-toast-icon{font-size:20px;flex-shrink:0;line-height:1}
+.custom-toast-body{font-size:13.5px;color:var(--navy);font-weight:600;flex:1;line-height:1.45}
+.custom-toast-close{background:none;border:none;font-size:20px;line-height:1;color:var(--muted);cursor:pointer;padding:0 4px;border-radius:4px;transition:all .15s}
+.custom-toast-close:hover{color:var(--navy);background:#f1f5f9}
+@media(max-width:600px){
+  .custom-toast-container{top:16px;right:16px}
+  .custom-dialog-card{padding:20px}
+}

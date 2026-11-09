@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { loadTeachers } from './data.js';
+import { showConfirm, showPrompt, showAlert, showToast } from './dialog.js';
 import { escapeHtml } from './utils.js';
 
 const teacherStatusLabel = {
@@ -701,12 +702,21 @@ export function bindAdminPage() {
       }
 
       if (rejectBtn) {
-        const reason = prompt('Nhập lý do cần giáo viên bổ sung hồ sơ:');
+        const reason = await showPrompt({
+          title: 'Yêu cầu bổ sung hồ sơ giáo viên',
+          message: 'Nhập lý do hoặc nội dung cần giáo viên hoàn thiện / bổ sung lại hồ sơ:',
+          placeholder: 'Ví dụ: Cần cập nhật ảnh chụp bằng lái rõ nét hơn, bổ sung kinh nghiệm...',
+          confirmText: 'Gửi yêu cầu',
+          confirmType: 'warning',
+          icon: '📝',
+          required: true,
+        });
         if (reason === null) return;
         const { error } = await supabase.rpc('reject_teacher_application', { target_teacher_id: rejectBtn.dataset.rejectTeacher, reason });
         if (error) throw error;
         message.textContent = 'Đã gửi yêu cầu bổ sung cho giáo viên.';
         message.className = 'admin-message success';
+        showToast('Đã gửi yêu cầu bổ sung cho giáo viên.', 'info');
         await Promise.all([loadCurrentTab(), loadTeachers()]);
         return;
       }
@@ -715,7 +725,14 @@ export function bindAdminPage() {
       if (adminDepBtn) {
         const id = adminDepBtn.dataset.adminConfirmDeposit;
         const name = adminDepBtn.dataset.name || 'học viên này';
-        if (!confirm('Quản trị viên xác nhận đã nhận 3.000.000đ tiền cọc từ "' + name + '"?')) return;
+        const ok = await showConfirm({
+          title: 'Xác nhận thu tiền cọc',
+          message: `Quản trị viên xác nhận đã nhận đủ 3.000.000đ tiền cọc từ "${name}"?\\n\\nSau khi xác nhận, giáo viên nhận dạy sẽ được thông báo để bấm tiếp nhận học viên.`,
+          confirmText: 'Xác nhận đã nhận cọc',
+          confirmType: 'success',
+          icon: '💰',
+        });
+        if (!ok) return;
         adminDepBtn.disabled = true;
         const { error } = await supabase.from('student_requests').update({
           deposit_status: 'paid',
@@ -725,6 +742,7 @@ export function bindAdminPage() {
         if (error) throw error;
         message.textContent = 'Đã xác nhận 3.000.000đ tiền cọc từ "' + name + '".';
         message.className = 'admin-message success';
+        showToast('Đã xác nhận 3.000.000đ tiền cọc từ ' + name, 'success');
         await loadCurrentTab();
         return;
       }
@@ -732,11 +750,21 @@ export function bindAdminPage() {
       if (reqBtn) {
         const action = reqBtn.dataset.reqAction;
         const id = reqBtn.dataset.id;
-        if (action === 'cancelled' && !confirm('Bạn có chắc chắn muốn hủy yêu cầu này?')) return;
+        if (action === 'cancelled') {
+          const ok = await showConfirm({
+            title: 'Hủy yêu cầu học lái',
+            message: 'Bạn có chắc chắn muốn hủy yêu cầu tư vấn học lái này?',
+            confirmText: 'Hủy yêu cầu',
+            confirmType: 'danger',
+            icon: '⚠️',
+          });
+          if (!ok) return;
+        }
         const { error } = await supabase.from('student_requests').update({ status: action }).eq('id', id);
         if (error) throw error;
         message.textContent = action === 'closed' ? 'Đã cập nhật: Học viên đã học xong.' : 'Đã cập nhật trạng thái yêu cầu học lái.';
         message.className = 'admin-message success';
+        showToast(message.textContent, 'success');
         await loadCurrentTab();
         return;
       }
@@ -744,11 +772,19 @@ export function bindAdminPage() {
       if (reqDeleteBtn) {
         const id = reqDeleteBtn.dataset.reqDelete;
         const name = reqDeleteBtn.dataset.name || 'yêu cầu này';
-        if (!confirm('Bạn có chắc chắn muốn xóa vĩnh viễn thông tin của "' + name + '"?')) return;
+        const ok = await showConfirm({
+          title: 'Xóa vĩnh viễn yêu cầu',
+          message: `Bạn có chắc chắn muốn xóa vĩnh viễn thông tin của "${name}"?\\n\\nThao tác này không thể hoàn tác.`,
+          confirmText: 'Xóa vĩnh viễn',
+          confirmType: 'danger',
+          icon: '🗑️',
+        });
+        if (!ok) return;
         const { error } = await supabase.from('student_requests').delete().eq('id', id);
         if (error) throw error;
         message.textContent = 'Đã xóa thông tin của "' + name + '" khỏi hệ thống.';
         message.className = 'admin-message success';
+        showToast('Đã xóa thông tin của ' + name, 'info');
         await loadCurrentTab();
         return;
       }
@@ -778,17 +814,26 @@ export function bindAdminPage() {
       if (contactDeleteBtn) {
         const id = contactDeleteBtn.dataset.contactDelete;
         const name = contactDeleteBtn.dataset.name || 'tin nhắn này';
-        if (!confirm('Bạn có chắc chắn muốn xóa tin nhắn của "' + name + '"?')) return;
+        const ok = await showConfirm({
+          title: 'Xóa tin nhắn liên hệ',
+          message: `Bạn có chắc chắn muốn xóa tin nhắn của "${name}"?`,
+          confirmText: 'Xóa tin nhắn',
+          confirmType: 'danger',
+          icon: '🗑️',
+        });
+        if (!ok) return;
         const { error } = await supabase.from('contact_messages').delete().eq('id', id);
         if (error) throw error;
         message.textContent = 'Đã xóa tin nhắn thành công.';
         message.className = 'admin-message success';
+        showToast('Đã xóa tin nhắn thành công.', 'info');
         await loadCurrentTab();
         return;
       }
     } catch (err) {
       message.textContent = err.message || 'Thao tác không thành công.';
       message.className = 'admin-message error';
+      showToast(err.message || 'Thao tác không thành công.', 'error');
     }
   });
 
