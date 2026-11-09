@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { loadTeachers } from './data.js';
 import { teacherDashboardPage, bindTeacherDashboard } from './teacher.js';
 import { showToast } from './dialog.js';
 
@@ -286,6 +287,7 @@ export function bindStudentAccountPage(user) {
 
   document.querySelector('#account-sign-out')?.addEventListener('click', async () => {
     await signOutFromSupabase();
+    await loadTeachers();
     location.hash = '#/';
   });
 

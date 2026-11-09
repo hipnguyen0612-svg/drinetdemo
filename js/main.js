@@ -43,6 +43,15 @@ function getPage(path) {
 async function render() {
   const rawRoute = location.hash.slice(1) || '/';
   const [path] = rawRoute.split('?');
+
+  if (path === '/' || path === '/giao-vien' || path.startsWith('/giao-vien/')) {
+    try {
+      await loadTeachers();
+    } catch (error) {
+      console.warn('Không thể đồng bộ danh sách giáo viên:', error);
+    }
+  }
+
   const page = getPage(path);
 
   app.innerHTML = nav() + page() + footer();

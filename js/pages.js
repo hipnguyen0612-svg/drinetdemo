@@ -16,7 +16,7 @@ export function bindTeacherFilters() {
 
   if (!areaFilter || !licenseFilter || !reviewFilter || !resultsCount || !resultsGrid) return;
 
-  let currentAvail = 'active';
+  let currentAvail = 'all';
 
   const applyFilters = () => {
     const all = getTeachers();
@@ -42,6 +42,7 @@ export function bindTeacherFilters() {
     let desc = '';
     if (currentAvail === 'active') desc = ' đang sẵn sàng nhận học viên';
     else if (currentAvail === 'paused') desc = ' đang tạm ngừng nhận dạy';
+    else desc = ' (Ưu tiên giáo viên sẵn sàng nhận học viên)';
 
     resultsCount.innerHTML = total
       ? 'Hiển thị <b>' + total + ' giáo viên' + desc + '</b> phù hợp'
@@ -66,7 +67,48 @@ export function bindTeacherFilters() {
 
 export function home() {
   const teachers = getTeachers();
-  return '<section class="hero"><div class="container"><span class="eyebrow"><i></i> NỀN TẢNG KẾT NỐI TẠI GIA LAI</span><h1>Tìm giáo viên dạy lái minh bạch tại Gia Lai</h1><p>Xem hồ sơ, chọn giáo viên phù hợp và đọc đánh giá từ học viên trước khi chọn.</p><div class="actions"><a class="btn btn-primary" href="#/giao-vien">Tìm giáo viên</a><a class="btn btn-light" href="#/dang-ky-hoc">Đăng ký tư vấn miễn phí</a></div><div class="trustline"><span><b>100%</b>Hồ sơ được kiểm tra</span><span><b>Minh bạch</b>Thông tin giáo viên</span><span><b>An tâm</b>Đánh giá kiểm duyệt</span></div></div></section><section class="section container"><div class="section-head"><span class="kicker">VÌ SAO LÀ DRINET</span><h2>Chủ động chọn người đồng hành trên hành trình học lái</h2><p>Thông tin rõ ràng hơn để bạn đưa ra lựa chọn phù hợp hơn.</p></div><div class="grid3"><div class="benefit"><div class="icon">&#128203;</div><h3>Minh bạch thông tin</h3><p>Tìm hiểu kinh nghiệm, hạng bằng và phong cách dạy trước khi lựa chọn.</p></div><div class="benefit"><div class="icon">&#10003;</div><h3>Hồ sơ được kiểm tra</h3><p>Thông tin giáo viên được xác minh trước khi hiển thị trên nền tảng.</p></div><div class="benefit"><div class="icon">&#9733;</div><h3>Đánh giá từ học viên thật</h3><p>Chỉ hiển thị đánh giá đã được kiểm duyệt và đối chiếu.</p></div></div></section><section class="section process"><div class="container"><div class="section-head"><span class="kicker">CÁCH DRINET HOẠT ĐỘNG</span><h2>Đơn giản để bắt đầu, rõ ràng trong từng bước</h2></div><div class="steps"><div class="step"><span class="step-no">01</span><h3>Tìm kiếm</h3><p>Lọc theo khu vực, hạng bằng và đánh giá.</p></div><div class="step"><span class="step-no">02</span><h3>Xem hồ sơ</h3><p>Khám phá kinh nghiệm, chuyên môn, lịch trống.</p></div><div class="step"><span class="step-no">03</span><h3>Đăng ký tư vấn</h3><p>Gửi nhu cầu học chỉ trong vài phút.</p></div><div class="step"><span class="step-no">04</span><h3>Kết nối phù hợp</h3><p>DriNet hỗ trợ kết nối đúng giáo viên, sẵn sàng đồng hành.</p></div></div></div></section>';
+  const activeCount = teachers.filter((t) => t.is_accepting_students !== false).length;
+  const pausedCount = teachers.filter((t) => t.is_accepting_students === false).length;
+
+  const sortedTeachers = [...teachers].sort((a, b) => {
+    const aActive = a.is_accepting_students !== false ? 1 : 0;
+    const bActive = b.is_accepting_students !== false ? 1 : 0;
+    if (bActive !== aActive) return bActive - aActive;
+    return Number(b.rating || 0) - Number(a.rating || 0);
+  });
+  const featuredTeachers = sortedTeachers.slice(0, 6);
+
+  const teacherSectionHtml =
+    '<section class="section container">' +
+      '<div class="teacher-row" style="align-items:flex-end;margin-bottom:24px">' +
+        '<div class="section-head" style="margin-bottom:0">' +
+          '<span class="kicker">GIÁO VIÊN NỔI BẬT</span>' +
+          '<h2>Đã xác minh, sẵn sàng đồng hành</h2>' +
+          '<p style="color:var(--muted);font-size:14px;margin-top:6px">' +
+            'Ưu tiên giáo viên đang sẵn sàng nhận học viên mới tại Gia Lai. ' +
+            '<span style="display:inline-flex;align-items:center;gap:6px;margin-left:4px;font-weight:600">' +
+              '<span style="color:#15803d;background:#dcfce7;padding:2px 8px;border-radius:12px;font-size:12px">🟢 ' + activeCount + ' đang nhận học viên</span>' +
+              (pausedCount ? '<span style="color:#b91c1c;background:#fee2e2;padding:2px 8px;border-radius:12px;font-size:12px">🔴 ' + pausedCount + ' tạm ngừng nhận</span>' : '') +
+            '</span>' +
+          '</p>' +
+        '</div>' +
+        '<a class="btn btn-light" href="#/giao-vien" style="white-space:nowrap">Xem tất cả hồ sơ &rarr;</a>' +
+      '</div>' +
+      '<div class="teachers">' +
+        (featuredTeachers.length
+          ? featuredTeachers.map(teacherCard).join('')
+          : '<p class="login-intro">Đang tải danh sách giáo viên…</p>') +
+      '</div>' +
+    '</section>' +
+    '<section class="cta-band">' +
+      '<div class="container">' +
+        '<h2>Sẵn sàng bắt đầu hành trình học lái?</h2>' +
+        '<p>Tìm người dạy phù hợp với lịch trình và nhu cầu của riêng bạn.</p>' +
+        '<a class="btn btn-primary" href="#/giao-vien">Tìm giáo viên ngay &rarr;</a>' +
+      '</div>' +
+    '</section>';
+
+  return '<section class="hero"><div class="container"><span class="eyebrow"><i></i> NỀN TẢNG KẾT NỐI TẠI GIA LAI</span><h1>Tìm giáo viên dạy lái minh bạch tại Gia Lai</h1><p>Xem hồ sơ, chọn giáo viên phù hợp và đọc đánh giá từ học viên trước khi chọn.</p><div class="actions"><a class="btn btn-primary" href="#/giao-vien">Tìm giáo viên</a><a class="btn btn-light" href="#/dang-ky-hoc">Đăng ký tư vấn miễn phí</a></div><div class="trustline"><span><b>100%</b>Hồ sơ được kiểm tra</span><span><b>Minh bạch</b>Thông tin giáo viên</span><span><b>An tâm</b>Đánh giá kiểm duyệt</span></div></div></section><section class="section container"><div class="section-head"><span class="kicker">VÌ SAO LÀ DRINET</span><h2>Chủ động chọn người đồng hành trên hành trình học lái</h2><p>Thông tin rõ ràng hơn để bạn đưa ra lựa chọn phù hợp hơn.</p></div><div class="grid3"><div class="benefit"><div class="icon">&#128203;</div><h3>Minh bạch thông tin</h3><p>Tìm hiểu kinh nghiệm, hạng bằng và phong cách dạy trước khi lựa chọn.</p></div><div class="benefit"><div class="icon">&#10003;</div><h3>Hồ sơ được kiểm tra</h3><p>Thông tin giáo viên được xác minh trước khi hiển thị trên nền tảng.</p></div><div class="benefit"><div class="icon">&#9733;</div><h3>Đánh giá từ học viên thật</h3><p>Chỉ hiển thị đánh giá đã được kiểm duyệt và đối chiếu.</p></div></div></section><section class="section process"><div class="container"><div class="section-head"><span class="kicker">CÁCH DRINET HOẠT ĐỘNG</span><h2>Đơn giản để bắt đầu, rõ ràng trong từng bước</h2></div><div class="steps"><div class="step"><span class="step-no">01</span><h3>Tìm kiếm</h3><p>Lọc theo khu vực, hạng bằng và đánh giá.</p></div><div class="step"><span class="step-no">02</span><h3>Xem hồ sơ</h3><p>Khám phá kinh nghiệm, chuyên môn, lịch trống.</p></div><div class="step"><span class="step-no">03</span><h3>Đăng ký tư vấn</h3><p>Gửi nhu cầu học chỉ trong vài phút.</p></div><div class="step"><span class="step-no">04</span><h3>Kết nối phù hợp</h3><p>DriNet hỗ trợ kết nối đúng giáo viên, sẵn sàng đồng hành.</p></div></div></div></section>' + teacherSectionHtml;
 }
 
 export function teacherList() {
@@ -84,12 +126,12 @@ export function teacherList() {
     if (bActive !== aActive) return bActive - aActive;
     return Number(b.rating || 0) - Number(a.rating || 0);
   });
-  const initialList = sortedTeachers.filter((t) => t.is_accepting_students !== false);
+  const initialList = sortedTeachers;
 
   return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">KHÁM PHÁ GIÁO VIÊN</span><h1>Tìm người dạy phù hợp với bạn</h1><p>Lọc và so sánh các giáo viên đã được DriNet xác minh tại Gia Lai.</p></div></section><main class="container section">' +
     '<div class="availability-tabs" id="teacher-avail-tabs">' +
-      '<button type="button" class="avail-tab active" data-avail="active">🟢 Đang nhận học viên (' + activeCount + ')</button>' +
-      '<button type="button" class="avail-tab" data-avail="all">Tất cả hồ sơ (' + totalCount + ')</button>' +
+      '<button type="button" class="avail-tab active" data-avail="all">Tất cả hồ sơ (' + totalCount + ')</button>' +
+      '<button type="button" class="avail-tab" data-avail="active">🟢 Đang nhận học viên (' + activeCount + ')</button>' +
       '<button type="button" class="avail-tab" data-avail="paused">🔴 Tạm ngừng nhận (' + pausedCount + ')</button>' +
     '</div>' +
     '<div class="filters">' +
@@ -99,8 +141,8 @@ export function teacherList() {
       '<button id="apply-teacher-filters" class="btn btn-primary" type="button">Lọc kết quả</button>' +
     '</div>' +
     '<div class="notice">&#8505; DriNet ưu tiên hiển thị các giáo viên <b>sẵn sàng nhận học viên mới</b> để bạn trao đổi và sắp xếp lịch học nhanh nhất.</div>' +
-    '<div class="teacher-row"><p id="teacher-results-count" style="font-size:14px;color:var(--muted)">Hiển thị <b>' + initialList.length + ' giáo viên đang sẵn sàng nhận học viên</b></p></div>' +
-    '<div id="teacher-results" class="teachers">' + (initialList.length ? initialList.map(teacherCard).join('') : '<div class="empty-results">Chưa có giáo viên nào sẵn sàng nhận học viên.</div>') + '</div></main>';
+    '<div class="teacher-row"><p id="teacher-results-count" style="font-size:14px;color:var(--muted)">Hiển thị <b>' + initialList.length + ' giáo viên (Ưu tiên giáo viên sẵn sàng nhận học viên)</b></p></div>' +
+    '<div id="teacher-results" class="teachers">' + (initialList.length ? initialList.map(teacherCard).join('') : '<div class="empty-results">Chưa có giáo viên nào.</div>') + '</div></main>';
 }
 
 export function profile(t) {

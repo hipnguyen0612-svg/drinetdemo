@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { getCurrentUser, signOutFromSupabase, initialiseAuth } from './auth.js';
+import { loadTeachers } from './data.js';
 import { openTeacherSupportModal } from './components.js';
 import { showConfirm, showPrompt, showAlert, showToast } from './dialog.js';
 import { escapeHtml } from './utils.js';
@@ -254,6 +255,7 @@ function renderHeader(teacher, user) {
         await supabase.rpc('toggle_teacher_accepting_students', { p_is_accepting: false, p_pause_reason: reason.trim() });
         activeTeacher.is_accepting_students = false;
         activeTeacher.pause_reason = reason.trim();
+        await loadTeachers();
         renderHeader(activeTeacher, getCurrentUser());
         showToast('Đã chuyển sang trạng thái tạm ngừng nhận học viên', 'warning');
       } catch (err) {
@@ -276,6 +278,7 @@ function renderHeader(teacher, user) {
         await supabase.rpc('toggle_teacher_accepting_students', { p_is_accepting: true, p_pause_reason: null });
         activeTeacher.is_accepting_students = true;
         activeTeacher.pause_reason = null;
+        await loadTeachers();
         renderHeader(activeTeacher, getCurrentUser());
         showToast('Đã mở nhận học viên mới trên DriNet', 'success');
       } catch (err) {
@@ -981,6 +984,7 @@ function renderProfileTab() {
       activeTeacher.bio = bio;
       activeTeacher.is_accepting_students = isAccepting;
       activeTeacher.pause_reason = pauseReason;
+      await loadTeachers();
 
       const user = getCurrentUser();
       if (user && user.id) {
@@ -1181,6 +1185,7 @@ function bindSecurityTab(user) {
 
   document.querySelector('#teacher-sign-out')?.addEventListener('click', async () => {
     await signOutFromSupabase();
+    await loadTeachers();
     location.hash = '#/';
   });
 }
