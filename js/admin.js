@@ -609,6 +609,7 @@ export function bindAdminPage() {
     const filterBtn = event.target.closest('[data-req-filter]');
     const dispatchBtn = event.target.closest('[data-dispatch-req]');
     const convertBtn = event.target.closest('[data-convert-contact]');
+    const adminDepBtn = event.target.closest('[data-admin-confirm-deposit]');
 
     try {
       if (viewDoc) {
@@ -742,7 +743,6 @@ export function bindAdminPage() {
         return;
       }
 
-      const adminDepBtn = target.closest('[data-admin-confirm-deposit]');
       if (adminDepBtn) {
         const id = adminDepBtn.dataset.adminConfirmDeposit;
         const name = adminDepBtn.dataset.name || 'học viên này';
