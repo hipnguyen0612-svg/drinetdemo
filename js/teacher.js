@@ -244,7 +244,7 @@ function renderHeader(teacher, user) {
         await supabase.rpc('toggle_teacher_accepting_students', { p_is_accepting: false, p_pause_reason: reason.trim() });
         activeTeacher.is_accepting_students = false;
         activeTeacher.pause_reason = reason.trim();
-        renderHeader(activeTeacher, currentUser);
+        renderHeader(activeTeacher, getCurrentUser());
       } catch (err) {
         alert('Lỗi cập nhật: ' + err.message);
         btn.disabled = false;
@@ -258,7 +258,7 @@ function renderHeader(teacher, user) {
         await supabase.rpc('toggle_teacher_accepting_students', { p_is_accepting: true, p_pause_reason: null });
         activeTeacher.is_accepting_students = true;
         activeTeacher.pause_reason = null;
-        renderHeader(activeTeacher, currentUser);
+        renderHeader(activeTeacher, getCurrentUser());
       } catch (err) {
         alert('Lỗi cập nhật: ' + err.message);
         btn.disabled = false;
@@ -309,10 +309,15 @@ async function renderStudentsTab() {
 
   try {
     let requests = [];
-    const { data: rpcData, error: rpcErr } = await supabase.rpc('get_teacher_student_requests');
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('get_teacher_student_requests', {
+      p_teacher_id: activeTeacher.id,
+    });
     if (!rpcErr && rpcData) {
       requests = rpcData;
     } else {
+      if (rpcErr) {
+        console.warn('Lưu ý RPC get_teacher_student_requests:', rpcErr);
+      }
       // Dự phòng nếu RPC chưa có
       const { data: tblData, error: tblErr } = await supabase
         .from('student_requests')
@@ -322,8 +327,6 @@ async function renderStudentsTab() {
       if (tblErr) throw tblErr;
       requests = tblData || [];
     }
-
-    if (error) throw error;
 
     const reqIds = (requests || []).map((r) => r.id);
     const lessonLogsMap = new Map();
