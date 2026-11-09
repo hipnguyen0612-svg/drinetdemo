@@ -1,7 +1,7 @@
 import { supabase } from './supabase.js';
 import { loadTeachers } from './data.js';
 import { teacherDashboardPage, bindTeacherDashboard } from './teacher.js';
-import { showToast } from './dialog.js';
+import { showConfirm, showToast } from './dialog.js';
 
 const SESSION_KEY = 'drinet-current-user';
 
@@ -142,12 +142,12 @@ export function studentAccountPage(user) {
       '</div>'
     : '';
 
-  const studentRequestsSection = user.role === 'student'
+  const studentRequestsSection = (user.role !== 'teacher')
     ? '<div class="panel" style="padding:24px;margin-bottom:24px">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">' +
           '<div>' +
             '<h3 style="margin:0;color:var(--navy)">Khóa học lái xe của bạn</h3>' +
-            '<p style="margin:2px 0 0;font-size:13px;color:var(--muted)">Theo dõi giáo viên phụ trách, tiến trình nộp 3tr cọc và nhật ký từng buổi dạy.</p>' +
+            '<p style="margin:2px 0 0;font-size:13px;color:var(--muted)">Theo dõi giáo viên phụ trách, nộp 3.000.000đ cọc và nhật ký từng buổi dạy.</p>' +
           '</div>' +
           '<a class="btn btn-light btn-sm" href="#/dang-ky-hoc">Đăng ký yêu cầu mới &rarr;</a>' +
         '</div>' +
@@ -291,9 +291,7 @@ export function bindStudentAccountPage(user) {
     location.hash = '#/';
   });
 
-  if (user.role === 'student') {
-    loadStudentRequestsHistory(user);
-  }
+  loadStudentRequestsHistory(user);
 }
 
 async function loadStudentRequestsHistory(user) {
@@ -310,6 +308,10 @@ async function loadStudentRequestsHistory(user) {
   };
 
   try {
+    try {
+      await supabase.rpc('link_my_student_requests');
+    } catch (_) {}
+
     const { data: requests, error } = await supabase
       .from('student_requests')
       .select('*, teacher:requested_teacher_id(id, display_name, area, licenses, experience_years, bio, center_name), assigned:assigned_teacher_id(id, display_name, area, licenses, experience_years, bio, center_name)')
@@ -320,8 +322,11 @@ async function loadStudentRequestsHistory(user) {
 
     if (!requests || !requests.length) {
       container.innerHTML = '<div style="text-align:center;padding:32px 16px;color:var(--muted)">' +
-        '<p style="margin:0 0 12px;font-size:14px">Bạn chưa gửi yêu cầu tư vấn học lái nào.</p>' +
-        '<a class="btn btn-light btn-sm" href="#/giao-vien">Tìm giáo viên ngay &rarr;</a>' +
+        '<p style="margin:0 0 12px;font-size:14px">Bạn chưa có yêu cầu tư vấn học lái nào được liên kết với tài khoản (Email: <b>' + escapeHtml(user.email) + '</b>).</p>' +
+        '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">' +
+          '<a class="btn btn-primary btn-sm" href="#/dang-ky-hoc">Đăng ký tư vấn học lái ngay &rarr;</a>' +
+          '<a class="btn btn-light btn-sm" href="#/giao-vien">Tìm giáo viên</a>' +
+        '</div>' +
         '</div>';
       return;
     }
@@ -364,28 +369,62 @@ async function loadStudentRequestsHistory(user) {
 
       let depositContentHtml = '';
       if (isDepositPaid) {
-        depositContentHtml = '<div style="margin-top:8px;padding:12px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:13px;color:#166534">' +
-          '<b>✓ Đã xác nhận hoàn tất nộp cọc 3.000.000đ.</b>' +
-          '<div style="font-size:12px;margin-top:2px;color:#15803d">Khoản tiền cọc đã được ghi nhận vào hồ sơ và sẽ trừ trực tiếp vào tổng học phí khóa đào tạo của bạn.</div>' +
+        depositContentHtml = '<div style="margin-top:10px;padding:14px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;font-size:13.5px;color:#166534">' +
+          '<div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:14.5px">' +
+            '<span>✅</span><span>ĐÃ HOÀN TẤT NỘP CỌC 3.000.000đ</span>' +
+          '</div>' +
+          '<div style="font-size:13px;margin-top:6px;line-height:1.5;color:#15803d">' +
+            'Khoản tiền cọc đã được ghi nhận vào hồ sơ đào tạo trên DriNet và sẽ trừ trực tiếp vào tổng học phí khóa học của bạn. Thông tin liên hệ đã được mở cho giáo viên để tiếp nhận và lên lịch học.' +
+          '</div>' +
+          (req.deposit_paid_at ? '<div style="font-size:12px;margin-top:6px;color:#166534;opacity:.85">🕒 Thời gian xác nhận: ' + new Date(req.deposit_paid_at).toLocaleString('vi-VN') + '</div>' : '') +
           '</div>';
       } else if (isDepositPending) {
-        depositContentHtml = '<div style="margin-top:8px;padding:12px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:13px;color:#92400e">' +
-          '<b>⏳ Đã ghi nhận thông báo chuyển cọc của bạn.</b>' +
-          '<div style="font-size:12px;margin-top:2px;color:#b45309">Ban Quản trị DriNet và giáo viên đang đối soát. Trạng thái sẽ được cập nhật ngay sau khi tiền cọc nổi.</div>' +
+        depositContentHtml = '<div style="margin-top:10px;padding:14px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;font-size:13.5px;color:#92400e">' +
+          '<div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:14.5px">' +
+            '<span>⏳</span><span>ĐÃ GHI NHẬN THÔNG BÁO CHUYỂN CỌC CỦA BẠN</span>' +
+          '</div>' +
+          '<div style="font-size:13px;margin-top:4px;color:#b45309">' +
+            'Ban Quản trị DriNet và giáo viên đang đối soát sao kê. Trạng thái sẽ được cập nhật ngay khi tiền cọc nổi.' +
+          '</div>' +
+          '<div style="margin-top:12px;padding:12px 14px;background:#ffffff;border:1.5px dashed #f59e0b;border-radius:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">' +
+            '<div>' +
+              '<div style="font-size:13px;font-weight:700;color:#92400e">⚡ Thử nghiệm chế độ Demo (Không cần chờ):</div>' +
+              '<div style="font-size:12px;color:#78350f;margin-top:2px">Bạn có thể xác nhận tức thì để hệ thống ghi nhận cọc thành công ngay lập tức.</div>' +
+            '</div>' +
+            '<button class="btn btn-sm btn-primary" data-demo-pay-deposit="' + req.id + '" data-name="' + escapeHtml(req.full_name) + '" type="button" style="background:#16a34a;border-color:#16a34a">🚀 Xác nhận nộp cọc Demo ngay</button>' +
+          '</div>' +
           '</div>';
       } else {
-        depositContentHtml = '<div class="deposit-box">' +
-          '<div class="deposit-qr"><img src="' + qrUrl + '" alt="QR nộp cọc 3tr DriNet"></div>' +
-          '<div class="deposit-info">' +
-            '<table>' +
-              '<tr><td>Số tiền cọc:</td><td><b style="color:#b91c1c;font-size:15px">3.000.000 đ</b></td></tr>' +
-              '<tr><td>Ngân hàng:</td><td>MB Bank (Ngân hàng Quân Đội)</td></tr>' +
-              '<tr><td>Số tài khoản:</td><td><b style="color:var(--navy);font-size:14px">0901234567</b></td></tr>' +
-              '<tr><td>Chủ tài khoản:</td><td>DRINET VIETNAM</td></tr>' +
-              '<tr><td>Nội dung CK:</td><td><b style="color:var(--blue)">COC ' + escapeHtml(cleanPhone) + ' ' + escapeHtml(req.full_name) + '</b></td></tr>' +
-            '</table>' +
-            '<div style="margin-top:10px">' +
-              '<button class="btn btn-sm btn-primary" data-notify-deposit="' + req.id + '" type="button">✓ Tôi đã chuyển khoản cọc 3.000.000đ</button>' +
+        depositContentHtml = '<div class="deposit-box" style="margin-top:12px;border:1.5px solid #bfdbfe;border-radius:10px;padding:16px;background:#f8fafc">' +
+          '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 14px;margin-bottom:14px">' +
+            '<div style="font-size:13.5px;color:#1e40af;font-weight:700;display:flex;align-items:center;gap:6px">' +
+              '<span>💡</span><span>CHẾ ĐỘ THỬ NGHIỆM DEMO (HOÀN TOÀN MIỄN PHÍ)</span>' +
+            '</div>' +
+            '<div style="font-size:12.5px;color:#1d4ed8;margin-top:4px;line-height:1.5">' +
+              'Vì đây là phiên bản Demo, bạn không cần chuyển tiền thật. Bạn có thể bấm nút <b>"Chuyển cọc Demo ngay"</b> bên dưới để hoàn tất cọc 3.000.000đ ngay lập tức và mở khóa tiếp nhận giáo viên!' +
+            '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">' +
+            '<div class="deposit-qr" style="flex:0 0 160px;text-align:center">' +
+              '<img src="' + qrUrl + '" alt="QR nộp cọc 3tr DriNet" style="width:160px;height:160px;border-radius:8px;border:1px solid #e2e8f0;display:block">' +
+              '<div style="font-size:11.5px;color:var(--muted);margin-top:6px">Quét mã QR VietQR</div>' +
+            '</div>' +
+            '<div class="deposit-info" style="flex:1;min-width:240px">' +
+              '<table style="width:100%;font-size:13.5px;border-collapse:collapse">' +
+                '<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:6px 0;color:var(--muted)">Số tiền cọc:</td><td style="padding:6px 0;text-align:right"><b style="color:#dc2626;font-size:17px">3.000.000 đ</b></td></tr>' +
+                '<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:6px 0;color:var(--muted)">Ngân hàng:</td><td style="padding:6px 0;text-align:right;font-weight:600">MB Bank (Quân Đội)</td></tr>' +
+                '<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:6px 0;color:var(--muted)">Số tài khoản:</td><td style="padding:6px 0;text-align:right"><b style="color:var(--navy);font-size:15px">0901234567</b></td></tr>' +
+                '<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:6px 0;color:var(--muted)">Chủ tài khoản:</td><td style="padding:6px 0;text-align:right;font-weight:600">DRINET VIETNAM</td></tr>' +
+                '<tr><td style="padding:6px 0;color:var(--muted)">Nội dung CK:</td><td style="padding:6px 0;text-align:right"><b style="color:var(--blue)">COC ' + escapeHtml(cleanPhone) + ' ' + escapeHtml(req.full_name) + '</b></td></tr>' +
+              '</table>' +
+              '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">' +
+                '<button class="btn btn-primary" data-demo-pay-deposit="' + req.id + '" data-name="' + escapeHtml(req.full_name) + '" type="button" style="background:#16a34a;border-color:#16a34a;font-weight:700;box-shadow:0 3px 10px rgba(22,163,74,0.3);padding:10px 18px">' +
+                  '⚡ Chuyển cọc Demo ngay (3.000.000đ)' +
+                '</button>' +
+                '<button class="btn btn-light btn-sm" data-notify-deposit="' + req.id + '" type="button" style="padding:9px 14px">' +
+                  '📲 Báo đã chuyển khoản (Chờ admin)' +
+                '</button>' +
+              '</div>' +
             '</div>' +
           '</div>' +
         '</div>';
@@ -508,14 +547,64 @@ async function loadStudentRequestsHistory(user) {
     container.innerHTML = '<p class="admin-message error">Không thể tải danh sách: ' + escapeHtml(err.message) + '</p>';
   }
 
+  // Handle Demo Deposit Payment
+  container.querySelectorAll('[data-demo-pay-deposit]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const reqId = btn.dataset.demoPayDeposit;
+      const name = btn.dataset.name || 'học viên';
+      const ok = await showConfirm({
+        title: 'Chuyển cọc trực tuyến (Mô phỏng Demo)',
+        message: `Hệ thống DriNet đang chạy ở Chế độ Thử nghiệm (Demo).\n\nBạn có muốn thực hiện thanh toán 3.000.000đ tiền cọc cho "${name}"?\n\n💡 Thao tác hoàn toàn miễn phí (không trừ tiền thật). Sau khi xác nhận, giáo viên sẽ nhận được thông báo để tiếp nhận bạn ngay lập tức!`,
+        confirmText: '🚀 Xác nhận nộp cọc 3.000.000đ (Demo)',
+        confirmType: 'success',
+        icon: '💳',
+      });
+      if (!ok) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Đang xử lý nộp cọc…';
+      try {
+        const { error } = await supabase.rpc('student_pay_deposit_demo', { p_request_id: reqId });
+        if (error) {
+          // Fallback direct update
+          await supabase.from('student_requests').update({
+            deposit_status: 'paid',
+            deposit_paid_at: new Date().toISOString(),
+            learning_status: 'schedule_pending',
+            deposit_note: 'Chuyển cọc trực tuyến 3.000.000đ thành công (Mô phỏng Demo DriNet)',
+          }).eq('id', reqId);
+        }
+        showToast('🎉 Nộp cọc 3.000.000đ Demo thành công! Giáo viên đã có thể tiếp nhận bạn.', 'success');
+        await loadStudentRequestsHistory(user);
+      } catch (err) {
+        showToast('Không thể chuyển cọc: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.textContent = '⚡ Chuyển cọc Demo ngay (3.000.000đ)';
+      }
+    });
+  });
+
+  // Handle Manual Transfer Notification
   container.querySelectorAll('[data-notify-deposit]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const reqId = btn.dataset.notifyDeposit;
+      const ok = await showConfirm({
+        title: 'Báo đã chuyển khoản cọc',
+        message: 'Bạn đã hoàn tất chuyển khoản 3.000.000đ qua mã QR hoặc ngân hàng?\n\nBan Quản trị DriNet sẽ đối soát và xác nhận cho bạn.',
+        confirmText: 'Tôi đã chuyển khoản',
+        confirmType: 'primary',
+        icon: '📲',
+      });
+      if (!ok) return;
+
       btn.disabled = true;
       btn.textContent = 'Đang ghi nhận…';
       try {
-        await supabase.from('student_requests').update({ deposit_status: 'pending_approval' }).eq('id', reqId);
-        showToast('Đã thông báo đã chuyển cọc tới Ban Quản trị DriNet!', 'success');
+        const { error } = await supabase.rpc('student_notify_deposit', { p_request_id: reqId });
+        if (error) {
+          await supabase.from('student_requests').update({ deposit_status: 'pending_approval' }).eq('id', reqId);
+        }
+        showToast('Đã gửi thông báo chuyển cọc đến Ban Quản trị DriNet!', 'success');
         await loadStudentRequestsHistory(user);
       } catch (err) {
         showToast('Không thể cập nhật: ' + err.message, 'error');
@@ -602,6 +691,17 @@ export function bindLoginPage() {
 
   if (location.hash.startsWith('#/dang-ky') || location.hash.includes('mode=signup')) {
     setView('signup');
+  }
+
+  const hashParts = location.hash.split('?');
+  const queryParams = new URLSearchParams(hashParts[1] || '');
+  const emailParam = queryParams.get('email');
+  if (emailParam) {
+    const emailInput = document.querySelector('#login-form [name="email"]');
+    if (emailInput) {
+      emailInput.value = emailParam;
+      document.querySelector('#login-form [name="password"]')?.focus();
+    }
   }
 
   const showError = (error) => {

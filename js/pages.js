@@ -240,6 +240,7 @@ export function bindStudentRegistration() {
     }
 
     let { data: { session } } = await supabase.auth.getSession();
+    let sessionUserId = session?.user?.id || null;
     const fullName = String(values.get('name') || '').trim();
     const phone = String(values.get('phone') || '').trim();
     const email = String(values.get('email') || '').trim();
@@ -262,8 +263,9 @@ export function bindStudentRegistration() {
           },
         });
         if (!signUpError && signUpData) {
-          isNewAccountCreated = true;
+          if (signUpData.user?.id) sessionUserId = signUpData.user.id;
           if (signUpData.session) session = signUpData.session;
+          isNewAccountCreated = Boolean(signUpData.user && (!signUpData.user.identities || signUpData.user.identities.length > 0));
         }
       } catch (authErr) {
         console.warn('Lưu ý cấp tài khoản:', authErr);
@@ -290,7 +292,7 @@ export function bindStudentRegistration() {
       wants_consultation: !selectedTeacher,
       notes: combinedNotes,
       source: 'website',
-      student_profile_id: session?.user?.id || null,
+      student_profile_id: session?.user?.id || sessionUserId || null,
       deposit_status: 'unpaid',
       deposit_amount: 3000000,
       learning_status: 'awaiting_deposit',
@@ -303,34 +305,42 @@ export function bindStudentRegistration() {
       const { error } = await supabase.from('student_requests').insert(payload);
       if (error) throw error;
       form.reset();
-      if (selectedTeacher) {
-        message.textContent = 'Đã gửi yêu cầu thành công! Thầy/cô ' + selectedTeacher.name + ' đã nhận được hồ sơ của bạn và sẽ chủ động gọi điện hoặc nhắn tin Zalo hỗ trợ bạn sớm nhất.';
-      } else {
-        message.textContent = 'Đã gửi yêu cầu thành công! Ban Quản trị DriNet đã nhận được yêu cầu và sẽ liên hệ tư vấn, điều phối giáo viên phù hợp nhất cho bạn.';
-      }
       
       const teacherNote = selectedTeacher
         ? 'Thầy/cô <b>' + escapeHtml(selectedTeacher.name) + '</b> đã nhận được hồ sơ của bạn và sẽ chủ động gọi điện hoặc nhắn tin Zalo hỗ trợ bạn sớm nhất.'
         : 'Ban Quản trị DriNet đã nhận được yêu cầu và sẽ liên hệ tư vấn, điều phối giáo viên phù hợp nhất cho bạn.';
 
-      const accountHtml = isNewAccountCreated
-        ? '<div class="account-provisioned-card">' +
-            '<h4>🎉 Đăng ký thành công & Đã cấp tài khoản học viên!</h4>' +
-            '<p style="margin:4px 0 10px;font-size:13.5px;color:#166534">' +
-              'Hệ thống DriNet đã cấp sẵn tài khoản để bạn theo dõi hồ sơ, nộp 3.000.000đ cọc và theo dõi nhật ký từng buổi dạy của giáo viên:' +
-            '</p>' +
-            '<div class="account-credentials-grid">' +
-              '<span>📧 Email đăng nhập:</span> <b>' + escapeHtml(email) + '</b>' +
-              '<span>🔑 Mật khẩu tạm thời:</span> <b>' + escapeHtml(tempPassword) + '</b>' +
-            '</div>' +
-            '<p style="margin:8px 0;font-size:12.5px;color:#15803d">' +
-              '💡 <i>Bạn có thể đổi mật khẩu bất kỳ lúc nào trong mục Hồ sơ cá nhân sau khi đăng nhập.</i>' +
-            '</p>' +
-            '<div style="margin-top:12px">' +
-              '<a class="btn btn-primary btn-sm" href="#/dang-nhap">👉 Đăng nhập để theo dõi khóa học &rarr;</a>' +
-            '</div>' +
-          '</div>'
-        : '<p style="margin:8px 0 0;font-weight:600;color:var(--navy)">Bạn đã đăng nhập. Hãy truy cập <a href="#/ho-so" style="color:var(--blue)">Hồ sơ cá nhân</a> để xem tiến trình khóa học và hướng dẫn nộp cọc 3.000.000đ!</p>';
+      let accountHtml = '';
+      if (session) {
+        accountHtml = '<div style="margin-top:14px;padding:16px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px">' +
+          '<h4 style="margin:0 0 6px;color:#166534;font-size:16px">🎉 Gửi yêu cầu tư vấn thành công!</h4>' +
+          '<p style="margin:0 0 12px;font-size:13.5px;color:#15803d">Hồ sơ đã được lưu vào tài khoản của bạn. Hãy vào Hồ sơ cá nhân để hoàn tất bước nộp 3.000.000đ cọc (Demo) và theo dõi lịch học.</p>' +
+          '<a class="btn btn-primary" href="#/ho-so" style="font-weight:700">👉 Vào Hồ sơ nộp cọc 3.000.000đ ngay &rarr;</a>' +
+          '</div>';
+      } else if (isNewAccountCreated) {
+        accountHtml = '<div class="account-provisioned-card">' +
+          '<h4>🎉 Đăng ký thành công & Đã cấp tài khoản học viên!</h4>' +
+          '<p style="margin:4px 0 10px;font-size:13.5px;color:#166534">' +
+            'Hệ thống DriNet đã cấp sẵn tài khoản để bạn đăng nhập nộp 3.000.000đ cọc (chế độ Demo trực tiếp trên web) và theo dõi tiến độ đào tạo:' +
+          '</p>' +
+          '<div class="account-credentials-grid">' +
+            '<span>📧 Email đăng nhập:</span> <b>' + escapeHtml(email) + '</b>' +
+            '<span>🔑 Mật khẩu tạm thời:</span> <b>' + escapeHtml(tempPassword) + '</b>' +
+          '</div>' +
+          '<p style="margin:8px 0;font-size:12.5px;color:#15803d">' +
+            '💡 <i>Bạn có thể đổi mật khẩu bất kỳ lúc nào trong mục Hồ sơ cá nhân sau khi đăng nhập.</i>' +
+          '</p>' +
+          '<div style="margin-top:14px">' +
+            '<a class="btn btn-primary" href="#/dang-nhap?email=' + encodeURIComponent(email) + '" style="font-weight:700">👉 Đăng nhập & Nộp cọc 3.000.000đ ngay &rarr;</a>' +
+          '</div>' +
+        '</div>';
+      } else {
+        accountHtml = '<div style="margin-top:14px;padding:16px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px">' +
+          '<h4 style="margin:0 0 6px;color:#92400e;font-size:16px">ℹ️ Email đã có tài khoản trên DriNet</h4>' +
+          '<p style="margin:0 0 12px;font-size:13.5px;color:#b45309">Email <b>' + escapeHtml(email) + '</b> đã được đăng ký tài khoản trước đó. Vui lòng đăng nhập để vào Hồ sơ nộp 3.000.000đ cọc (Demo) và theo dõi khóa học của bạn.</p>' +
+          '<a class="btn btn-primary" href="#/dang-nhap?email=' + encodeURIComponent(email) + '" style="font-weight:700">👉 Đăng nhập tài khoản & Nộp cọc 3tr ngay &rarr;</a>' +
+        '</div>';
+      }
 
       message.innerHTML = '<div style="margin-bottom:12px;font-size:15px;line-height:1.5">' +
         '<b>✅ Gửi yêu cầu thành công!</b> ' + teacherNote +
