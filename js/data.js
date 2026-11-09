@@ -17,6 +17,8 @@ export function formatTeacher(teacher) {
     center: teacher.center_name || 'Độc lập',
     bio: teacher.bio || '',
     status: teacher.status,
+    is_accepting_students: teacher.is_accepting_students !== false,
+    pause_reason: teacher.pause_reason || '',
   };
 }
 

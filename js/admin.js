@@ -173,6 +173,7 @@ async function renderTeachersTab() {
     return '<article class="admin-item-card"><div class="admin-item-main"><h3>' +
       escapeHtml(teacher.display_name) +
       ' <span class="admin-status status-' + teacher.status + '">' + (teacherStatusLabel[teacher.status] || teacher.status) + '</span></h3>' +
+      '<div style="margin-bottom:6px">' + (teacher.is_accepting_students !== false ? '<span style="background:#e6fcf5;color:#0ca678;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700">🟢 Đang nhận học viên</span>' : '<span style="background:#fee2e2;color:#b91c1c;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700">🔴 Tạm ngừng nhận dạy</span>' + (teacher.pause_reason ? ' <small style="color:var(--muted)">(' + escapeHtml(teacher.pause_reason) + ')</small>' : '')) + '</div>' +
       '<div class="admin-item-meta"><span>Khu vực:</span> <b>' + escapeHtml(teacher.area) + '</b>' +
       '<span>Hạng bằng:</span> <b>' + escapeHtml((teacher.licenses || []).join(', ')) + '</b>' +
       '<span>Kinh nghiệm:</span> <b>' + teacher.experience_years + ' năm</b>' +
@@ -203,7 +204,7 @@ async function renderRequestsTab() {
     { data: contacts, error: contactsError },
   ] = await Promise.all([
     supabase.from('student_requests').select('*').order('created_at', { ascending: false }),
-    supabase.from('teachers').select('id, display_name, area, status').order('display_name'),
+    supabase.from('teachers').select('id, display_name, area, status, is_accepting_students').order('display_name'),
     supabase.from('contact_messages').select('*').order('created_at', { ascending: false }),
   ]);
 
@@ -302,7 +303,8 @@ async function renderRequestsTab() {
                   ${(teachers || []).map((t) => {
                     const isSelected = item.assigned_teacher_id === t.id;
                     const statusNote = t.status === 'approved' ? '' : ' [Chưa duyệt]';
-                    return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(t.display_name)} (${escapeHtml(t.area)})${statusNote}</option>`;
+                    const pausedNote = t.is_accepting_students === false ? ' [🔴 Tạm ngừng]' : '';
+                    return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(t.display_name)} (${escapeHtml(t.area)})${statusNote}${pausedNote}</option>`;
                   }).join('')}
                 </select>
                 <button class="btn btn-sm btn-primary" data-dispatch-req="${item.id}" type="button" style="padding:6px 14px;font-size:12px">
@@ -324,7 +326,8 @@ async function renderRequestsTab() {
                 ${(teachers || []).map((t) => {
                   const isSelected = item.assigned_teacher_id === t.id;
                   const statusNote = t.status === 'approved' ? '' : ' [Chưa duyệt]';
-                  return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(t.display_name)} (${escapeHtml(t.area)})${statusNote}</option>`;
+                  const pausedNote = t.is_accepting_students === false ? ' [🔴 Tạm ngừng]' : '';
+                  return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(t.display_name)} (${escapeHtml(t.area)})${statusNote}${pausedNote}</option>`;
                 }).join('')}
               </select>
               <button class="btn btn-sm btn-primary" data-dispatch-req="${item.id}" type="button" style="padding:6px 14px;font-size:12.5px">
@@ -350,7 +353,8 @@ async function renderRequestsTab() {
                   ${(teachers || []).map((t) => {
                     const isSelected = item.assigned_teacher_id === t.id;
                     const statusNote = t.status === 'approved' ? '' : ' [Chưa duyệt]';
-                    return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(t.display_name)} (${escapeHtml(t.area)})${statusNote}</option>`;
+                    const pausedNote = t.is_accepting_students === false ? ' [🔴 Tạm ngừng]' : '';
+                    return `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${escapeHtml(t.display_name)} (${escapeHtml(t.area)})${statusNote}${pausedNote}</option>`;
                   }).join('')}
                 </select>
                 <button class="btn btn-sm btn-primary" data-dispatch-req="${item.id}" type="button" style="padding:6px 14px;font-size:12px">
@@ -372,6 +376,8 @@ async function renderRequestsTab() {
       const isDepositPending = item.deposit_status === 'pending_approval';
       const isEligible = item.learning_status === 'eligible_for_exam';
       const isGraduated = item.learning_status === 'graduated';
+      const isAccepted = item.teacher_accepted === true;
+      const acceptedBadge = isAccepted ? '<span style="background:#dcfce7;color:#15803d;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700">🤝 GV đã tiếp nhận</span>' : (isDepositPaid ? '<span style="background:#fef3c7;color:#b45309;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700">⏳ Chờ GV tiếp nhận</span>' : '');
       const depositBadge = isDepositPaid
         ? '<span style="background:#e6fcf5;color:#0ca678;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:700">💰 Đã nộp 3tr cọc</span>'
         : (isDepositPending
@@ -381,6 +387,7 @@ async function renderRequestsTab() {
       return '<article class="admin-item-card"><div class="admin-item-main"><h3>' +
         escapeHtml(item.full_name) + ' ' + categoryBadge +
         ' ' + depositBadge +
+        ' ' + acceptedBadge +
         (isEligible ? ' <span style="background:#dcfce7;color:#15803d;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:800">🎓 Đủ điều kiện thi</span>' : '') +
         (isGraduated ? ' <span style="background:#e0e7ff;color:#4338ca;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:800">✓ Tốt nghiệp</span>' : '') +
         ' <span class="admin-status status-' + item.status + '">' + (requestStatusLabel[item.status] || item.status) + '</span></h3>' +
@@ -829,4 +836,5 @@ export function bindAdminPage() {
     }
   });
 }
+
 

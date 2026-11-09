@@ -51,7 +51,39 @@ export function profile(t) {
   if (!t) {
     return '<main class="container section"><div class="panel" style="padding:32px;text-align:center"><h2>Không tìm thấy giáo viên</h2><p style="color:var(--muted);margin:8px 0 20px">Hồ sơ này không tồn tại hoặc chưa được phê duyệt.</p><a class="btn btn-primary" href="#/giao-vien">&larr; Quay lại danh sách giáo viên</a></div></main>';
   }
-  return '<section class="page-hero"><div class="container"><a href="#/giao-vien" style="font-size:13px;color:#b9dcff">&larr; Quay lại danh sách giáo viên</a><h1>Hồ sơ giáo viên</h1></div></section><main class="container section"><div class="profile"><aside class="profile-image"><img src="' + escapeHtml(t.img) + '" alt="' + escapeHtml(t.name) + '"></aside><div><span class="tag">&#10003; Đã xác minh hồ sơ</span><h1>' + escapeHtml(t.name) + '</h1><p style="color:var(--muted)">' + escapeHtml(t.bio) + '</p><div class="info-grid"><div class="info-item"><b>Kinh nghiệm</b>' + escapeHtml(t.exp) + '</div><div class="info-item"><b>Hạng giảng dạy</b>' + escapeHtml(t.licenses) + '</div><div class="info-item"><b>Khu vực hoạt động</b>' + escapeHtml(t.area) + '</div><div class="info-item"><b>Trung tâm liên kết</b>' + escapeHtml(t.center) + '</div></div><a class="btn btn-primary" href="#/dang-ky-hoc?teacher=' + encodeURIComponent(t.slug) + '" style="margin-top:18px">Yêu cầu tư vấn với giáo viên này &rarr;</a></div></div><div class="grid3" style="margin-top:40px;grid-template-columns:1fr 1fr"><div class="panel"><h3>Lịch trống trong tuần</h3><div class="schedule"><span class="slot">T2 · Sáng</span><span class="slot">T3 · Chiều</span><span class="slot">T5 · Sáng</span><span class="slot">T7 · Cả ngày</span></div></div><div class="panel"><h3>Đánh giá học viên <span class="rating">&#9733; ' + escapeHtml(t.rating) + ' · ' + escapeHtml(t.reviews) + ' lượt đánh giá</span></h3><div id="teacher-profile-reviews" class="reviews" data-teacher-id="' + escapeHtml(t.id) + '"><div class="drinet-loading-state" style="padding:20px;min-height:100px"><div class="drinet-spinner" style="width:28px;height:28px"></div><p class="drinet-loading-text">Đang tải đánh giá…</p></div></div></div></div></main>';
+
+  const isPaused = !t.is_accepting_students;
+  const statusTag = isPaused
+    ? '<span class="tag tag-paused">🔴 Tạm ngừng nhận dạy</span>'
+    : '<span class="tag">&#10003; Đã xác minh hồ sơ</span>';
+
+  const pausedAlertHtml = isPaused ? `
+    <div class="alert-paused">
+      <span style="font-size:22px">⏸️</span>
+      <div>
+        <b style="font-size:15px;color:#92400e">Giáo viên hiện đang tạm ngừng nhận học viên mới:</b>
+        <p style="margin:4px 0 0;font-size:13.5px;color:#78350f">
+          Thầy/cô hiện đã đủ học viên hoặc đang tạm nghỉ${t.pause_reason ? ` (Lý do: <i>${escapeHtml(t.pause_reason)}</i>)` : ''}.
+          Bạn có thể tham khảo các giáo viên khác hoặc nhờ DriNet tư vấn điều phối giáo viên phù hợp.
+        </p>
+      </div>
+    </div>
+  ` : '';
+
+  const ctaBtnHtml = isPaused
+    ? `<div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+         <button class="btn btn-light" disabled style="opacity:0.65;cursor:not-allowed;background:#f1f5f9;border-color:#cbd5e1;color:#64748b">🔴 Tạm ngừng nhận học viên</button>
+         <a class="btn btn-primary" href="#/dang-ky-hoc">Nhờ DriNet tư vấn giáo viên khác &rarr;</a>
+       </div>`
+    : `<a class="btn btn-primary" href="#/dang-ky-hoc?teacher=${encodeURIComponent(t.slug)}" style="margin-top:18px">Yêu cầu tư vấn với giáo viên này &rarr;</a>`;
+
+  return '<section class="page-hero"><div class="container"><a href="#/giao-vien" style="font-size:13px;color:#b9dcff">&larr; Quay lại danh sách giáo viên</a><h1>Hồ sơ giáo viên</h1></div></section><main class="container section">' +
+    pausedAlertHtml +
+    '<div class="profile"><aside class="profile-image"><img src="' + escapeHtml(t.img) + '" alt="' + escapeHtml(t.name) + '"></aside><div>' +
+    statusTag +
+    '<h1>' + escapeHtml(t.name) + '</h1><p style="color:var(--muted)">' + escapeHtml(t.bio) + '</p><div class="info-grid"><div class="info-item"><b>Kinh nghiệm</b>' + escapeHtml(t.exp) + '</div><div class="info-item"><b>Hạng giảng dạy</b>' + escapeHtml(t.licenses) + '</div><div class="info-item"><b>Khu vực hoạt động</b>' + escapeHtml(t.area) + '</div><div class="info-item"><b>Trung tâm liên kết</b>' + escapeHtml(t.center) + '</div></div>' +
+    ctaBtnHtml +
+    '</div></div><div class="grid3" style="margin-top:40px;grid-template-columns:1fr 1fr"><div class="panel"><h3>Lịch trống trong tuần</h3><div class="schedule"><span class="slot">T2 · Sáng</span><span class="slot">T3 · Chiều</span><span class="slot">T5 · Sáng</span><span class="slot">T7 · Cả ngày</span></div></div><div class="panel"><h3>Đánh giá học viên <span class="rating">&#9733; ' + escapeHtml(t.rating) + ' · ' + escapeHtml(t.reviews) + ' lượt đánh giá</span></h3><div id="teacher-profile-reviews" class="reviews" data-teacher-id="' + escapeHtml(t.id) + '"><div class="drinet-loading-state" style="padding:20px;min-height:100px"><div class="drinet-spinner" style="width:28px;height:28px"></div><p class="drinet-loading-text">Đang tải đánh giá…</p></div></div></div></div></main>';
 }
 
 export async function bindTeacherProfile(teacher) {
@@ -78,10 +110,14 @@ function studentRegistrationPage() {
   const areas = [...new Set(teachers.map((teacher) => teacher.area).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
   const selectedTeacher = teachers.find((teacher) => teacher.slug === queryTeacher || teacher.name === queryTeacher);
   const selectedArea = selectedTeacher?.area || '';
-  const teacherOptions = (area) => teachers.filter((teacher) => !area || teacher.area === area).map((teacher) => '<option value="' + escapeHtml(teacher.slug) + '"' + (selectedTeacher?.slug === teacher.slug ? ' selected' : '') + '>' + escapeHtml(teacher.name) + ' · ' + escapeHtml(teacher.area) + '</option>').join('');
+  const teacherOptions = (area) => teachers.filter((teacher) => !area || teacher.area === area).map((teacher) => {
+    const isPaused = !teacher.is_accepting_students;
+    const prefix = isPaused ? '[🔴 Tạm ngừng nhận] ' : '';
+    const disabledAttr = isPaused ? ' disabled style="color:#94a3b8"' : '';
+    return '<option value="' + escapeHtml(teacher.slug) + '"' + (selectedTeacher?.slug === teacher.slug ? ' selected' : '') + disabledAttr + '>' + prefix + escapeHtml(teacher.name) + ' · ' + escapeHtml(teacher.area) + '</option>';
+  }).join('');
 
   return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">BẮT ĐẦU CÙNG DRINET</span><h1>Đăng ký tư vấn học lái</h1><p>Chỉ mất vài phút để DriNet hiểu nhu cầu và hỗ trợ bạn.</p></div></section><main class="container section"><form id="student-reg-form" class="panel form-card"><h3>Đăng ký tư vấn học lái</h3><div class="notice">&#128274; <b>Quy trình đào tạo minh bạch:</b> Chọn giáo viên &rarr; Chốt hồ sơ &rarr; Nộp 3.000.000đ cọc &rarr; Trao đổi lịch học với giáo viên &rarr; Bắt đầu buổi 1 và theo dõi nhật ký từng buổi dạy trên hệ thống.<br><span style="font-size:12.5px;color:#1e40af;margin-top:4px;display:inline-block">🎁 Hệ thống sẽ tự động cấp tài khoản học viên để bạn theo dõi tiến trình và nhật ký đào tạo.</span></div><div class="form-grid"><div><label>Họ và tên *</label><input name="name" required autocomplete="name" placeholder="Nguyễn Văn A" value="' + escapeHtml(currentUser?.name) + '"></div><div><label>Số điện thoại hoặc Zalo *</label><input name="phone" type="tel" required autocomplete="tel" placeholder="09xxxxxxxx" value="' + escapeHtml(currentUser?.phone) + '"></div><div><label>Email (Nhận tài khoản học viên) *</label><input name="email" type="email" required autocomplete="email" placeholder="hocvien@gmail.com" value="' + escapeHtml(currentUser?.email) + '"></div><div><label>Hạng bằng muốn học *</label><select name="licenseGoal" required><option value="">Chọn hạng bằng</option><option value="Hạng B">Hạng B</option><option value="Hạng C1">Hạng C1</option><option value="Khác">Khác</option></select></div><div><label>Đã có giấy phép học viên? *</label><select name="hasLearnerPermit" required><option value="">Chọn thông tin</option><option value="true">Có</option><option value="false">Chưa</option></select></div><div><label for="registration-area">Khu vực thuận tiện *</label><select id="registration-area" name="area" required><option value="">Chọn khu vực</option>' + areas.map((area) => '<option value="' + escapeHtml(area) + '"' + (area === selectedArea ? ' selected' : '') + '>' + escapeHtml(area) + '</option>').join('') + '</select></div><div><label>Khung giờ học ưa thích</label><select name="preferredTime"><option value="Sáng">Sáng</option><option value="Chiều">Chiều</option><option value="Tối">Tối</option><option value="Cuối tuần">Cuối tuần</option><option value="Linh hoạt">Linh hoạt</option></select></div><div class="full"><label for="registration-teacher">Nguyện vọng giáo viên</label><select id="registration-teacher" name="teacher">' + teacherOptions(selectedArea) + '</select><div id="registration-teacher-hint" class="field-hint" style="font-size:13px;color:var(--muted);margin-top:6px"></div></div><div class="full"><label>Ghi chú thêm về nhu cầu</label><textarea name="notes" rows="3" placeholder="Ví dụ: Chỉ rảnh cuối tuần, cần giáo viên kiên nhẫn, muốn học nhanh…"></textarea></div><div class="full check"><input id="terms-student" type="checkbox" required><label for="terms-student">Tôi đồng ý với <a href="#/dieu-khoan">Điều khoản sử dụng</a> và cho phép liên hệ tư vấn.</label></div></div><button class="btn btn-primary" type="submit">Gửi yêu cầu tư vấn &rarr;</button><div class="form-success" aria-live="polite"></div></form></main>';
-  return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">BẮT ĐẦU CÙNG DRINET</span><h1>Đăng ký tư vấn học lái</h1><p>Chỉ mất vài phút để DriNet hiểu nhu cầu và hỗ trợ bạn.</p></div></section><main class="container section"><form id="student-reg-form" class="panel form-card"><h3>Đăng ký tư vấn học lái</h3><div class="notice">&#128274; Bạn có thể chọn giáo viên mong muốn để liên hệ trực tiếp hoặc nhờ DriNet tư vấn điều phối giáo viên phù hợp.</div><div class="form-grid"><div><label>Họ và tên *</label><input name="name" required autocomplete="name" value="' + escapeHtml(currentUser?.name) + '"></div><div><label>Số điện thoại hoặc Zalo *</label><input name="phone" type="tel" required autocomplete="tel" value="' + escapeHtml(currentUser?.phone) + '"></div><div><label>Email</label><input name="email" type="email" autocomplete="email" value="' + escapeHtml(currentUser?.email) + '"></div><div><label>Hạng bằng muốn học *</label><select name="licenseGoal" required><option value="">Chọn hạng bằng</option><option value="Hạng B">Hạng B</option><option value="Hạng C1">Hạng C1</option><option value="Khác">Khác</option></select></div><div><label>Đã có giấy phép học viên? *</label><select name="hasLearnerPermit" required><option value="">Chọn thông tin</option><option value="true">Có</option><option value="false">Chưa</option></select></div><div><label for="registration-area">Khu vực thuận tiện *</label><select id="registration-area" name="area" required><option value="">Chọn khu vực</option>' + areas.map((area) => '<option value="' + escapeHtml(area) + '"' + (area === selectedArea ? ' selected' : '') + '>' + escapeHtml(area) + '</option>').join('') + '</select></div><div><label>Khung giờ học ưa thích</label><select name="preferredTime"><option value="Sáng">Sáng</option><option value="Chiều">Chiều</option><option value="Tối">Tối</option><option value="Cuối tuần">Cuối tuần</option><option value="Linh hoạt">Linh hoạt</option></select></div><div><label for="registration-teacher">Giáo viên mong muốn</label><select id="registration-teacher" name="teacher"><option value="consultation"' + (selectedTeacher ? '' : ' selected') + '>Nhờ DriNet tư vấn</option>' + teacherOptions(selectedArea) + '</select><small id="registration-teacher-hint" style="color:var(--muted);font-size:12px;display:block;margin-top:5px;line-height:1.4"></small></div><div class="full check"><input id="terms" type="checkbox" required><label for="terms">Tôi đã đọc và đồng ý với <a href="#/dieu-khoan" style="color:var(--blue)">Điều khoản sử dụng và Chính sách bảo mật</a> của DriNet. *</label></div><div class="full"><button class="btn btn-primary" type="submit">Gửi yêu cầu tư vấn &rarr;</button></div></div><div class="form-success"></div></form></main>';
 }
 
 export function bindStudentRegistration() {
@@ -96,7 +132,12 @@ export function bindStudentRegistration() {
     const selected = teacherSelect.value;
     const matched = teachers.filter((teacher) => !areaSelect.value || teacher.area === areaSelect.value);
     teacherSelect.innerHTML = '<option value="consultation">Nhờ DriNet tư vấn</option>' +
-      matched.map((t) => '<option value="' + escapeHtml(t.slug) + '">' + escapeHtml(t.name) + ' · ' + escapeHtml(t.area) + '</option>').join('');
+      matched.map((t) => {
+        const isPaused = !t.is_accepting_students;
+        const prefix = isPaused ? '[🔴 Tạm ngừng nhận] ' : '';
+        const disabledAttr = isPaused ? ' disabled style="color:#94a3b8"' : '';
+        return '<option value="' + escapeHtml(t.slug) + '"' + disabledAttr + '>' + prefix + escapeHtml(t.name) + ' · ' + escapeHtml(t.area) + '</option>';
+      }).join('');
     if ([...teacherSelect.options].some((opt) => opt.value === selected)) {
       teacherSelect.value = selected;
     }
@@ -111,7 +152,11 @@ export function bindStudentRegistration() {
       hintEl.innerHTML = '🎯 <i>Hồ sơ sẽ được chuyển tới Ban Quản trị DriNet để tư vấn và điều phối giáo viên phù hợp nhất tại khu vực của bạn.</i>';
     } else {
       const t = teachers.find((teacher) => teacher.slug === teacherSlug);
-      hintEl.innerHTML = '⭐ <i>Yêu cầu sẽ được chuyển thẳng đến Dashboard của thầy/cô <b>' + escapeHtml(t?.name || 'giáo viên') + '</b> để thầy/cô chủ động liên hệ trực tiếp với bạn (không qua trung gian).</i>';
+      if (t && !t.is_accepting_students) {
+        hintEl.innerHTML = '⚠️ <i>Thầy/cô <b>' + escapeHtml(t.name) + '</b> hiện đang <b>tạm ngừng nhận học viên mới</b>. Vui lòng chọn giáo viên khác hoặc chọn "Nhờ DriNet tư vấn" để DriNet hỗ trợ bạn.</i>';
+      } else {
+        hintEl.innerHTML = '⭐ <i>Yêu cầu sẽ được chuyển thẳng đến Dashboard của thầy/cô <b>' + escapeHtml(t?.name || 'giáo viên') + '</b> để chuẩn bị hồ sơ đào tạo.</i>';
+      }
     }
   };
   areaSelect.addEventListener('change', renderTeacherOptions);
@@ -407,4 +452,5 @@ export function about() {
 export function terms() {
   return '<section class="page-hero"><div class="container"><span class="kicker" style="color:#83c7ff">THÔNG TIN PHÁP LÝ</span><h1>Điều khoản & bảo mật</h1><p>Cập nhật lần cuối: tháng 11 năm 2026</p></div></section><main class="container section prose"><h2>Điều khoản sử dụng</h2><ul><li>DriNet là nền tảng kết nối, không trực tiếp thực hiện hoạt động đào tạo lái xe.</li><li>Học phí, lịch học và thỏa thuận đào tạo do giáo viên hoặc trung tâm quyết định.</li><li>Người dùng có trách nhiệm cung cấp thông tin chính xác, đầy đủ khi sử dụng nền tảng.</li><li>Đánh giá phải trung thực, tôn trọng và tuân thủ quy định của DriNet.</li></ul><h2>Chính sách bảo mật</h2><p>DriNet thu thập thông tin liên hệ, nhu cầu học và thông tin hồ sơ cần thiết để kết nối, xác minh và hỗ trợ người dùng. Dữ liệu được sử dụng đúng mục đích, bảo vệ bằng biện pháp phù hợp và lưu giữ trong thời gian cần thiết cho dịch vụ hoặc theo quy định pháp luật.</p><p>Bạn có quyền yêu cầu xem, chỉnh sửa hoặc xóa thông tin cá nhân của mình bằng cách liên hệ DriNet. Tài liệu xác minh của giáo viên/trung tâm chỉ phục vụ quản trị viên kiểm tra, tuyệt đối không hiển thị công khai.</p><h2>Quy định giao dịch</h2><p>DriNet khuyến khích người dùng thực hiện giao dịch thông qua quy trình của nền tảng để nhận được hỗ trợ khi phát sinh khiếu nại. Người dùng nên xác nhận rõ học phí, lịch học và nội dung dịch vụ trước khi bắt đầu.</p></main>';
 }
+
 

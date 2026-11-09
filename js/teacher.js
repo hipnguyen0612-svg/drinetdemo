@@ -160,6 +160,26 @@ function renderHeader(teacher, user) {
   }
 
   const avatarChar = (teacher.display_name || user.name || 'G').charAt(0).toUpperCase();
+  const isAccepting = teacher.is_accepting_students !== false;
+
+  const availabilityCardHtml = teacher.status === 'approved' ? `
+    <div class="teacher-availability-card ${isAccepting ? 'accepting' : 'paused'}">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span class="status-dot ${isAccepting ? 'online' : 'paused'}"></span>
+        <div>
+          <div style="font-weight:700;font-size:14.5px;color:var(--navy)">
+            ${isAccepting ? '🟢 Đang nhận học viên mới qua DriNet' : '🔴 Đang tạm ngừng nhận dạy'}
+          </div>
+          <div style="font-size:12.5px;color:var(--muted)">
+            ${isAccepting ? 'Hồ sơ đang hiển thị sẵn sàng nhận học viên mới trên hệ thống.' : `Tạm ngừng nhận học viên mới trên trang công khai.${teacher.pause_reason ? ` (Lý do: ${escapeHtml(teacher.pause_reason)})` : ''}`}
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-sm ${isAccepting ? 'btn-light' : 'btn-primary'}" id="btn-toggle-availability" type="button" style="padding:6px 14px;font-size:12.5px">
+        ${isAccepting ? '⏸️ Tạm ngừng nhận học viên' : '▶️ Bật nhận học viên trở lại'}
+      </button>
+    </div>
+  ` : '';
 
   header.innerHTML = `
     <div class="panel teacher-header-card">
@@ -179,6 +199,8 @@ function renderHeader(teacher, user) {
 
     ${statusBannerHtml}
 
+    ${availabilityCardHtml}
+
     <div class="teacher-stats-grid">
       <div class="teacher-stat-card">
         <span class="teacher-stat-label">Học viên tiếp nhận</span>
@@ -192,8 +214,8 @@ function renderHeader(teacher, user) {
       </div>
       <div class="teacher-stat-card">
         <span class="teacher-stat-label">Trạng thái nhận học</span>
-        <span class="teacher-stat-value" style="font-size:19px;color:var(--green)">Đang mở nhận</span>
-        <span class="teacher-stat-sub">Sẵn sàng nhận học viên mới</span>
+        <span class="teacher-stat-value" style="font-size:19px;color:${isAccepting ? 'var(--green)' : '#dc2626'}">${isAccepting ? 'Đang mở nhận' : 'Tạm ngừng'}</span>
+        <span class="teacher-stat-sub">${isAccepting ? 'Sẵn sàng nhận học viên mới' : 'Đang tạm dừng nhận lớp mới'}</span>
       </div>
       <div class="teacher-stat-card">
         <span class="teacher-stat-label">Khu vực & Hạng bằng</span>
@@ -208,6 +230,41 @@ function renderHeader(teacher, user) {
   `;
 
   document.querySelector('#btn-goto-profile-edit')?.addEventListener('click', () => switchTab('profile'));
+
+  document.querySelector('#btn-toggle-availability')?.addEventListener('click', async () => {
+    const btn = document.querySelector('#btn-toggle-availability');
+    btn.disabled = true;
+    if (isAccepting) {
+      const reason = prompt('Nhập lý do tạm ngừng nhận học viên (ví dụ: Đã đủ học viên khóa này, nghỉ phép...):', teacher.pause_reason || 'Đã đủ học viên khóa này');
+      if (reason === null) {
+        btn.disabled = false;
+        return;
+      }
+      try {
+        await supabase.rpc('toggle_teacher_accepting_students', { p_is_accepting: false, p_pause_reason: reason.trim() });
+        activeTeacher.is_accepting_students = false;
+        activeTeacher.pause_reason = reason.trim();
+        renderHeader(activeTeacher, currentUser);
+      } catch (err) {
+        alert('Lỗi cập nhật: ' + err.message);
+        btn.disabled = false;
+      }
+    } else {
+      if (!confirm('Bạn có muốn mở nhận học viên mới trở lại trên DriNet?')) {
+        btn.disabled = false;
+        return;
+      }
+      try {
+        await supabase.rpc('toggle_teacher_accepting_students', { p_is_accepting: true, p_pause_reason: null });
+        activeTeacher.is_accepting_students = true;
+        activeTeacher.pause_reason = null;
+        renderHeader(activeTeacher, currentUser);
+      } catch (err) {
+        alert('Lỗi cập nhật: ' + err.message);
+        btn.disabled = false;
+      }
+    }
+  });
 }
 
 function setupTabs() {
@@ -251,11 +308,20 @@ async function renderStudentsTab() {
   content.innerHTML = renderSpinner('Đang tải danh sách học viên đăng ký…');
 
   try {
-    const { data: requests, error } = await supabase
-      .from('student_requests')
-      .select('*')
-      .or(`requested_teacher_id.eq.${activeTeacher.id},assigned_teacher_id.eq.${activeTeacher.id}`)
-      .order('created_at', { ascending: false });
+    let requests = [];
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('get_teacher_student_requests');
+    if (!rpcErr && rpcData) {
+      requests = rpcData;
+    } else {
+      // Dự phòng nếu RPC chưa có
+      const { data: tblData, error: tblErr } = await supabase
+        .from('student_requests')
+        .select('*')
+        .or(`requested_teacher_id.eq.${activeTeacher.id},assigned_teacher_id.eq.${activeTeacher.id}`)
+        .order('created_at', { ascending: false });
+      if (tblErr) throw tblErr;
+      requests = tblData || [];
+    }
 
     if (error) throw error;
 
@@ -337,6 +403,11 @@ async function renderStudentsTab() {
           const isDepositPending = req.deposit_status === 'pending_approval';
           const isEligible = req.learning_status === 'eligible_for_exam';
           const isGraduated = req.learning_status === 'graduated';
+          const isTeacherAccepted = req.teacher_accepted === true;
+          const isContactUnlocked = isDepositPaid && isTeacherAccepted;
+
+          const phoneDisplay = isContactUnlocked ? escapeHtml(req.phone || '') : '<span style="color:#d97706;font-weight:700">🔒 0987*** (Mở sau khi có cọc & nhận lớp)</span>';
+          const emailDisplay = isContactUnlocked ? escapeHtml(req.email || '') : '<span style="color:#d97706;font-weight:700">🔒 Đã bảo mật</span>';
 
           return `
             <div class="admin-item-card" data-req-id="${req.id}">
@@ -347,8 +418,8 @@ async function renderStudentsTab() {
                   <span class="tag status-${req.status}">${requestStatusLabels[req.status] || req.status}</span>
                 </h3>
                 <div class="admin-item-meta">
-                  <span>📞 Số điện thoại: <b>${escapeHtml(req.phone)}</b></span>
-                  ${req.email ? `<span>✉️ Email: <b>${escapeHtml(req.email)}</b></span>` : ''}
+                  <span>📞 Số điện thoại: <b>${phoneDisplay}</b></span>
+                  <span>✉️ Email: <b>${emailDisplay}</b></span>
                   <span>🚗 Hạng muốn học: <b>${escapeHtml(req.license_goal || 'Chưa rõ')}</b></span>
                   <span>📍 Khu vực: <b>${escapeHtml(req.preferred_area || 'Gia Lai')}</b></span>
                   ${req.preferred_time ? `<span>⏰ Thời gian học: <b>${escapeHtml(req.preferred_time)}</b></span>` : ''}
@@ -356,6 +427,34 @@ async function renderStudentsTab() {
                 </div>
                 ${req.notes ? `<div class="admin-item-body"><b>Ghi chú:</b> ${escapeHtml(req.notes)}</div>` : ''}
                 ${noticeHtml}
+
+                ${!isContactUnlocked ? `
+                  <div class="contact-locked-box" style="margin-top:12px">
+                    <div style="font-weight:700;display:flex;align-items:center;gap:6px">
+                      <span>🔒 Thông tin liên hệ (SĐT, Zalo, Email) đang được bảo mật</span>
+                    </div>
+                    <p style="margin:4px 0 8px;font-size:12.5px;color:#78350f">
+                      Nhằm đảm bảo quy trình cọc qua DriNet và quyền lợi đôi bên, hệ thống sẽ mở khóa SĐT và Zalo khi học viên đã nộp 3.000.000đ cọc và thầy/cô bấm "Tiếp nhận học viên".
+                    </p>
+                    ${!isDepositPaid ? `
+                      <div style="font-size:12px;color:#92400e;display:flex;align-items:center;gap:6px">
+                        <span>⏳ <b>Trạng thái cọc:</b> Học viên chưa nộp 3.000.000đ cọc (Ban Quản trị DriNet đang đôn đốc và theo dõi).</span>
+                      </div>
+                    ` : `
+                      <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:10px 14px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+                        <span style="color:#15803d;font-weight:700;font-size:12.5px">💰 Học viên đã nộp đủ 3.000.000đ cọc! Thầy/cô vui lòng bấm tiếp nhận để mở khóa liên hệ:</span>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                          <button class="btn btn-sm btn-primary" data-accept-student="${req.id}" data-name="${escapeHtml(req.full_name)}" type="button" style="background:#16a34a;border-color:#16a34a;padding:5px 12px;font-size:12px">
+                            🤝 Tiếp nhận học viên ngay
+                          </button>
+                          <button class="btn btn-sm btn-light" data-decline-student="${req.id}" data-name="${escapeHtml(req.full_name)}" type="button" style="color:#dc2626;padding:5px 10px;font-size:12px">
+                            ❌ Báo bận / Không nhận
+                          </button>
+                        </div>
+                      </div>
+                    `}
+                  </div>
+                ` : ''}
 
                 <div style="margin-top:12px;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px">
                   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">
@@ -367,11 +466,6 @@ async function renderStudentsTab() {
                             ? '<span style="background:#fff9db;color:#f59f00;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:700">⏳ Học viên báo đã chuyển cọc</span>'
                             : '<span style="background:#f1f5f9;color:#64748b;padding:3px 9px;border-radius:6px;font-size:12px">Chưa nộp 3tr cọc</span>')}
                     </div>
-                    ${!isDepositPaid ? `
-                      <button class="btn btn-sm btn-primary" data-confirm-deposit="${req.id}" data-name="${escapeHtml(req.full_name)}" type="button" style="padding:4px 10px;font-size:12px">
-                        💰 Xác nhận đã nhận 3tr cọc
-                      </button>
-                    ` : ''}
                   </div>
 
                   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-top:1px dashed #cbd5e1;padding-top:8px">
@@ -382,18 +476,26 @@ async function renderStudentsTab() {
                       ${isGraduated ? '<span style="background:#e0e7ff;color:#4338ca;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:800">✓ HOÀN THÀNH KHÓA</span>' : ''}
                     </div>
                     <div style="display:flex;gap:6px;flex-wrap:wrap">
+                      ${isContactUnlocked ? `
                       <button class="btn btn-sm btn-primary" data-add-lesson="${req.id}" data-name="${escapeHtml(req.full_name)}" data-next-num="${totalLessons + 1}" type="button" style="padding:5px 11px;font-size:12px">
                         ➕ Cập nhật buổi dạy
                       </button>
+                      ` : ''}
                       ${logs.length > 0 ? `<button class="btn btn-sm btn-light" data-view-lessons="${req.id}" data-name="${escapeHtml(req.full_name)}" type="button" style="padding:5px 10px;font-size:12px">📋 Nhật ký (${logs.length})</button>` : ''}
                       ${!isEligible && !isGraduated ? `<button class="btn btn-sm btn-success" data-mark-eligible="${req.id}" data-name="${escapeHtml(req.full_name)}" type="button" style="background:#10b981;color:#fff;border-color:#10b981;padding:5px 10px;font-size:12px">🎓 Đủ điều kiện thi</button>` : ''}
                     </div>
                   </div>
                 </div>
 
-                <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-                  <a class="admin-btn btn-call" href="tel:${escapeHtml(cleanPhone)}">📞 Gọi điện ngay</a>
-                  <a class="admin-btn btn-zalo" href="https://zalo.me/${encodeURIComponent(cleanPhone)}" target="_blank" rel="noopener">💬 Nhắn tin Zalo</a>
+                ${isContactUnlocked ? `
+                  <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+                    <span style="background:#dcfce7;color:#15803d;padding:3px 9px;border-radius:6px;font-size:11.5px;font-weight:700">✓ Đã tiếp nhận học viên</span>
+                    ${cleanPhone ? `
+                      <a class="admin-btn btn-call" href="tel:${escapeHtml(cleanPhone)}">📞 Gọi điện (${escapeHtml(req.phone)})</a>
+                      <a class="admin-btn btn-zalo" href="https://zalo.me/${encodeURIComponent(cleanPhone)}" target="_blank" rel="noopener">💬 Nhắn tin Zalo</a>
+                    ` : ''}
+                  </div>
+                ` : ''}
                 </div>
               </div>
               <div class="admin-btn-group">
@@ -435,33 +537,51 @@ async function renderStudentsTab() {
       });
     });
 
-    // Xác nhận đã nhận 3tr cọc
-    content.querySelectorAll('[data-confirm-deposit]').forEach((btn) => {
+    // Tiếp nhận học viên (Sau khi cọc)
+    content.querySelectorAll('[data-accept-student]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        const id = btn.dataset.confirmDeposit;
+        const id = btn.dataset.acceptStudent;
         const name = btn.dataset.name || 'học viên này';
-        if (!confirm(`Xác nhận bạn hoặc trung tâm đã nhận đủ 3.000.000đ tiền cọc từ "${name}"?`)) return;
+        if (!confirm(`Xác nhận tiếp nhận học viên "${name}" vào danh sách đào tạo? Hệ thống sẽ mở khóa số điện thoại và Zalo để bạn liên hệ.`)) return;
         btn.disabled = true;
         try {
-          const { error: depErr } = await supabase
-            .from('student_requests')
-            .update({
-              deposit_status: 'paid',
-              deposit_paid_at: new Date().toISOString(),
-              learning_status: 'schedule_pending',
-              status: 'confirmed',
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', id);
-          if (depErr) throw depErr;
+          const { error: accErr } = await supabase.rpc('accept_student_request', { p_request_id: id });
+          if (accErr) throw accErr;
           const msg = document.querySelector('#student-action-msg');
           if (msg) {
-            msg.textContent = `Đã xác nhận nhận 3.000.000đ cọc từ "${name}". Bước xếp lịch học buổi 1 đã kích hoạt!`;
+            msg.textContent = `Đã tiếp nhận học viên "${name}". Thông tin liên hệ đã được mở khóa!`;
             msg.className = 'admin-message success';
           }
           await renderStudentsTab();
         } catch (err) {
-          alert('Lỗi xác nhận cọc: ' + err.message);
+          alert('Lỗi tiếp nhận học viên: ' + err.message);
+          btn.disabled = false;
+        }
+      });
+    });
+
+    // Báo bận / Không nhận học viên
+    content.querySelectorAll('[data-decline-student]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.declineStudent;
+        const name = btn.dataset.name || 'học viên này';
+        const reason = prompt(`Nhập lý do bạn không thể nhận học viên "${name}" (Hệ thống sẽ chuyển lại Ban Quản trị DriNet để điều phối giáo viên khác):`, 'Lịch đào tạo đã kín trong tuần này');
+        if (reason === null) return;
+        btn.disabled = true;
+        try {
+          const { error: decErr } = await supabase.rpc('decline_student_request', {
+            p_request_id: id,
+            p_reason: reason.trim() || 'Giáo viên báo bận',
+          });
+          if (decErr) throw decErr;
+          const msg = document.querySelector('#student-action-msg');
+          if (msg) {
+            msg.textContent = `Đã chuyển trả yêu cầu của "${name}" về Ban Quản trị DriNet để điều phối giáo viên khác.`;
+            msg.className = 'admin-message success';
+          }
+          await renderStudentsTab();
+        } catch (err) {
+          alert('Không thể thực hiện: ' + err.message);
           btn.disabled = false;
         }
       });
@@ -722,6 +842,20 @@ function renderProfileTab() {
           <label>Tên trung tâm liên kết (nếu có)</label>
           <input name="centerName" value="${escapeHtml(t.center_name || '')}" placeholder="Ví dụ: Trung tâm Đào tạo Lái xe Gia Lai">
         </div>
+        <div class="full" style="background:#f8fafc;padding:16px;border-radius:10px;border:1px solid #e2e8f0;margin-top:10px">
+          <div style="font-weight:700;color:var(--navy);font-size:14px;margin-bottom:8px">
+            ⚙️ Cài đặt nhận học viên mới
+          </div>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;font-size:13.5px">
+            <input type="checkbox" id="profile-accepting-input" name="isAcceptingStudents" value="true" ${t.is_accepting_students !== false ? 'checked' : ''} style="width:18px;height:18px;accent-color:var(--blue)">
+            <span>Đang sẵn sàng nhận thêm học viên mới qua hệ thống DriNet</span>
+          </label>
+          <div id="pause-reason-wrapper" style="margin-top:10px;${t.is_accepting_students !== false ? 'display:none;' : ''}">
+            <label style="font-size:12.5px;color:var(--muted)">Lý do tạm ngừng nhận (hiển thị khi học viên xem hồ sơ)</label>
+            <input name="pauseReason" value="${escapeHtml(t.pause_reason || '')}" placeholder="Ví dụ: Đã đủ học viên khóa này, nghỉ phép, bận việc riêng…">
+          </div>
+        </div>
+
         <div class="full">
           <label>Giới thiệu bản thân & cam kết đào tạo</label>
           <textarea name="bio" rows="4" placeholder="Chia sẻ về phong cách giảng dạy, xe tập lái (xe mới, máy lạnh...), hỗ trợ đưa đón hoặc tỷ lệ đỗ…">${escapeHtml(t.bio || '')}</textarea>
@@ -736,6 +870,11 @@ function renderProfileTab() {
   `;
 
   const form = document.querySelector('#teacher-profile-edit-form');
+  const acceptingInput = form?.querySelector('#profile-accepting-input');
+  const pauseWrapper = form?.querySelector('#pause-reason-wrapper');
+  acceptingInput?.addEventListener('change', () => {
+    if (pauseWrapper) pauseWrapper.style.display = acceptingInput.checked ? 'none' : 'block';
+  });
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = form.querySelector('button[type="submit"]');
@@ -748,6 +887,8 @@ function renderProfileTab() {
     const experienceYears = Number(values.get('experienceYears')) || 0;
     const centerName = String(values.get('centerName') || '').trim() || null;
     const bio = String(values.get('bio') || '').trim() || null;
+    const isAccepting = values.get('isAcceptingStudents') === 'true';
+    const pauseReason = !isAccepting ? String(values.get('pauseReason') || '').trim() || null : null;
 
     if (!displayName || !area || !rawLicenses) {
       if (msg) {
@@ -774,6 +915,8 @@ function renderProfileTab() {
           price_per_lesson: pricePerLesson,
           center_name: centerName,
           bio,
+          is_accepting_students: isAccepting,
+          pause_reason: pauseReason,
           updated_at: new Date().toISOString(),
         })
         .eq('id', activeTeacher.id);
@@ -787,6 +930,8 @@ function renderProfileTab() {
       activeTeacher.price_per_lesson = pricePerLesson;
       activeTeacher.center_name = centerName;
       activeTeacher.bio = bio;
+      activeTeacher.is_accepting_students = isAccepting;
+      activeTeacher.pause_reason = pauseReason;
 
       const user = getCurrentUser();
       if (user && user.id) {
